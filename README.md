@@ -35,11 +35,22 @@ graph TD
 ```bash
 git clone https://github.com/YOUR_USERNAME/echo-backend
 cd echo-backend
-cp .env.example .env        # fill in secrets
-docker compose up --build   # postgres + redis + app
+cp .env.example .env
+docker compose up -d
+go run ./cmd/server
 ```
 
 API: http://localhost:8080
+
+## Migrations
+
+Versioned SQL migrations are stored in [migrations](migrations).
+
+```bash
+docker compose run --rm migrate
+```
+
+On `docker compose up -d`, the `migrate` service also runs automatically once PostgreSQL is healthy.
 
 ## Endpoints
 

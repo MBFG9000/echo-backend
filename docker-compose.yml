@@ -10,6 +10,11 @@ services:
       - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7
@@ -18,6 +23,23 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://echo:echo@postgres:5432/echo?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
 
 volumes:
   postgres_data:
