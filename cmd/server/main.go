@@ -47,29 +47,39 @@ func run() error {
 
 	userRepo := repository.NewUser(db)
 	postRepo := repository.NewPost(db)
+	feedRepo := repository.NewFeed(db)
 
-	authService := service.NewAuth(userRepo, pseudonym.NewRandom(time.Now().UnixNano()), cfg.JWT.Secret, cfg.JWT.TTL)
+	authService := service.NewAuth(userRepo, pseudonym.NewRandom(time.Now().UnixNano()), redisClient, cfg.JWT.Secret, cfg.JWT.TTL)
 	postService := service.NewPost(postRepo)
+	feedService := service.NewFeed(feedRepo, redisClient)
 
 	authHandler := handler.NewAuth(authService)
 	postHandler := handler.NewPost(postService)
+	feedHandler := handler.NewFeed(feedService)
+	replyHandler := handler.NewReply(postService)
+	reactionHandler := handler.NewReaction(postService)
 
-	authMiddleware := middleware.NewAuth(cfg.JWT.Secret)
+	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
 	rateLimitMiddleware := middleware.NewRateLimit(redisClient, cfg.Server.RateLimitRequests, cfg.Server.RateLimitWindow)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), rateLimitMiddleware.Handler())
 
-	api := router.Group("/api")
-	authRoutes := api.Group("/auth")
+	authRoutes := router.Group("/auth")
 	authHandler.Register(authRoutes)
 
-	publicPosts := api.Group("/posts")
+	publicPosts := router.Group("/posts")
 	postHandler.RegisterPublic(publicPosts)
+	replyHandler.RegisterPublic(publicPosts)
 
-	privatePosts := api.Group("/posts")
+	privatePosts := router.Group("/posts")
 	privatePosts.Use(authMiddleware.Handler())
 	postHandler.RegisterPrivate(privatePosts)
+	replyHandler.RegisterPrivate(privatePosts)
+	reactionHandler.Register(privatePosts)
+
+	feedRoutes := router.Group("/feed")
+	feedHandler.Register(feedRoutes)
 
 	server := &http.Server{
 		Addr:         cfg.Server.Address(),
