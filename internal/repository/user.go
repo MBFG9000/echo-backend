@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/echo-app/echo/internal/domain"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -30,9 +32,9 @@ func (u *User) Create(ctx context.Context, user *domain.User) error {
 	return err
 }
 
-func (u *User) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (u *User) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	var user domain.User
-	err := u.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
+	err := u.db.WithContext(ctx).First(&user, "id = ?", id).Error
 	if err == nil {
 		return &user, nil
 	}
@@ -43,15 +45,16 @@ func (u *User) GetByEmail(ctx context.Context, email string) (*domain.User, erro
 	return nil, err
 }
 
-func (u *User) GetByID(ctx context.Context, id uint) (*domain.User, error) {
-	var user domain.User
-	err := u.db.WithContext(ctx).First(&user, id).Error
-	if err == nil {
-		return &user, nil
+func (u *User) UpdateToken(ctx context.Context, id uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	result := u.db.WithContext(ctx).Model(&domain.User{}).
+		Where("id = ?", id).
+		Updates(map[string]any{"token_hash": tokenHash, "expires_at": expiresAt})
+	if result.Error != nil {
+		return result.Error
 	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, domain.ErrNotFound
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
 	}
 
-	return nil, err
+	return nil
 }

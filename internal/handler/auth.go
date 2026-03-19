@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -12,14 +13,13 @@ type Auth struct {
 	auth domain.AuthService
 }
 
-type authRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=128"`
+type registerResponse struct {
+	Token     string `json:"token"`
+	Pseudonym string `json:"pseudonym"`
 }
 
-type authResponse struct {
-	Token string      `json:"token"`
-	User  domain.User `json:"user"`
+type refreshResponse struct {
+	Token string `json:"token"`
 }
 
 func NewAuth(auth domain.AuthService) *Auth {
@@ -28,39 +28,34 @@ func NewAuth(auth domain.AuthService) *Auth {
 
 func (a *Auth) Register(rg *gin.RouterGroup) {
 	rg.POST("/register", a.register)
-	rg.POST("/login", a.login)
+	rg.POST("/refresh", a.refresh)
 }
 
 func (a *Auth) register(c *gin.Context) {
-	var req authRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
-		return
-	}
-
-	token, user, err := a.auth.Register(c.Request.Context(), req.Email, req.Password)
+	token, pseudonym, err := a.auth.Register(c.Request.Context())
 	if err != nil {
 		a.writeAuthError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, authResponse{Token: token, User: *user})
+	c.JSON(http.StatusCreated, registerResponse{Token: token, Pseudonym: pseudonym})
 }
 
-func (a *Auth) login(c *gin.Context) {
-	var req authRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+func (a *Auth) refresh(c *gin.Context) {
+	authorization := c.GetHeader("Authorization")
+	parts := strings.SplitN(authorization, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
 		return
 	}
 
-	token, user, err := a.auth.Login(c.Request.Context(), req.Email, req.Password)
+	token, err := a.auth.Refresh(c.Request.Context(), parts[1])
 	if err != nil {
 		a.writeAuthError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, authResponse{Token: token, User: *user})
+	c.JSON(http.StatusOK, refreshResponse{Token: token})
 }
 
 func (a *Auth) writeAuthError(c *gin.Context, err error) {
