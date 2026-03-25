@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/echo-app/echo/internal/domain"
@@ -28,37 +27,30 @@ func (r *Reaction) Register(rg *gin.RouterGroup) {
 func (r *Reaction) react(c *gin.Context) {
 	var req reactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeValidationError(c, err)
 		return
 	}
 
 	postID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	userIDValue, ok := c.Get("userID")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	userID, ok := userIDValue.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	if err := r.posts.React(c.Request.Context(), postID, userID, req.Kind); err != nil {
-		switch {
-		case errors.Is(err, domain.ErrInvalidInput):
-			c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
-		case errors.Is(err, domain.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": domain.ErrNotFound.Error()})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-		}
+		writeDomainError(c, err)
 		return
 	}
 

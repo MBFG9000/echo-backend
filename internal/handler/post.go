@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/echo-app/echo/internal/domain"
@@ -41,37 +40,37 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 func (p *Post) create(c *gin.Context) {
 	var req createPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeValidationError(c, err)
 		return
 	}
 
 	userIDValue, ok := c.Get("userID")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	userID, ok := userIDValue.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	pseudonymValue, ok := c.Get("pseudonym")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	pseudonym, ok := pseudonymValue.(string)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	post, err := p.posts.Create(c.Request.Context(), userID, pseudonym, req.Content)
 	if err != nil {
-		p.writePostError(c, err)
+		writeDomainError(c, err)
 		return
 	}
 
@@ -81,25 +80,25 @@ func (p *Post) create(c *gin.Context) {
 func (p *Post) delete(c *gin.Context) {
 	userIDValue, ok := c.Get("userID")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	userID, ok := userIDValue.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	postID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	err = p.posts.Delete(c.Request.Context(), postID, userID)
 	if err != nil {
-		p.writePostError(c, err)
+		writeDomainError(c, err)
 		return
 	}
 
@@ -109,28 +108,15 @@ func (p *Post) delete(c *gin.Context) {
 func (p *Post) getByID(c *gin.Context) {
 	postID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	post, err := p.posts.GetByID(c.Request.Context(), postID)
 	if err != nil {
-		p.writePostError(c, err)
+		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, post)
-}
-
-func (p *Post) writePostError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": domain.ErrNotFound.Error()})
-	case errors.Is(err, domain.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
-	case errors.Is(err, domain.ErrInvalidInput):
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-	}
 }

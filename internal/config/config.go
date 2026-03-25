@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -14,6 +15,7 @@ type Config struct {
 	DB         DB
 	Redis      Redis
 	JWT        JWT
+	CORS       CORS
 	Moderation Moderation
 }
 
@@ -45,6 +47,10 @@ type Redis struct {
 type JWT struct {
 	Secret string
 	TTL    time.Duration
+}
+
+type CORS struct {
+	AllowedOrigins []string
 }
 
 type Moderation struct {
@@ -107,6 +113,11 @@ func Load() (Config, error) {
 	jwtSecret, err := requiredString("JWT_SECRET", false)
 	if err != nil {
 		return Config{}, err
+	}
+
+	corsAllowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if strings.TrimSpace(corsAllowedOrigins) == "" {
+		corsAllowedOrigins = "*"
 	}
 
 	readTimeout, err := mustDuration("SERVER_READ_TIMEOUT")
@@ -176,6 +187,9 @@ func Load() (Config, error) {
 			Secret: jwtSecret,
 			TTL:    jwtTTL,
 		},
+		CORS: CORS{
+			AllowedOrigins: splitAndTrim(corsAllowedOrigins),
+		},
 		Moderation: Moderation{
 			AutoHideThreshold: autoHideThreshold,
 		},
@@ -240,4 +254,17 @@ func mustDuration(key string) (time.Duration, error) {
 		return 0, fmt.Errorf("parse %s: %w", key, err)
 	}
 	return parsed, nil
+}
+
+func splitAndTrim(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	return result
 }

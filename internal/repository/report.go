@@ -30,7 +30,7 @@ func (r *Report) Create(ctx context.Context, report *domain.Report, autoHideThre
 
 	autoHidden := false
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(report).Error; err != nil {
+		if err := tx.Omit("Action", "ActionNote", "ReviewedBy", "ReviewedAt").Create(report).Error; err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				return domain.ErrConflict
 			}

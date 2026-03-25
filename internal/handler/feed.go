@@ -28,7 +28,7 @@ func (f *Feed) latest(c *gin.Context) {
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+			writeDomainError(c, domain.ErrInvalidInput)
 			return
 		}
 		limit = parsed
@@ -36,13 +36,13 @@ func (f *Feed) latest(c *gin.Context) {
 
 	cursor, err := parseCursor(c.Query("cursor"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	posts, next, err := f.feeds.Latest(c.Request.Context(), limit, cursor)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		writeDomainError(c, err)
 		return
 	}
 
@@ -59,7 +59,7 @@ func (f *Feed) trending(c *gin.Context) {
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+			writeDomainError(c, domain.ErrInvalidInput)
 			return
 		}
 		limit = parsed
@@ -67,7 +67,7 @@ func (f *Feed) trending(c *gin.Context) {
 
 	posts, err := f.feeds.Trending(c.Request.Context(), limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		writeDomainError(c, err)
 		return
 	}
 

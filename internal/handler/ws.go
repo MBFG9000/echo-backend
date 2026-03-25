@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/hub"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -33,7 +34,7 @@ func (w *WS) Register(rg *gin.RouterGroup) {
 func (w *WS) feed(c *gin.Context) {
 	conn, err := w.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.Status(http.StatusBadRequest)
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 

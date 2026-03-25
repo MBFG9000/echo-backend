@@ -17,14 +17,14 @@ func (a *Admin) Handler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isAdminValue, ok := c.Get("isAdmin")
 		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": domain.ErrForbidden.Error()})
+			c.JSON(http.StatusForbidden, httpError{Error: domain.ErrForbidden.Error(), Code: "ERR_FORBIDDEN"})
 			c.Abort()
 			return
 		}
 
 		isAdmin, ok := isAdminValue.(bool)
 		if !ok || !isAdmin {
-			c.JSON(http.StatusForbidden, gin.H{"error": domain.ErrForbidden.Error()})
+			c.JSON(http.StatusForbidden, httpError{Error: domain.ErrForbidden.Error(), Code: "ERR_FORBIDDEN"})
 			c.Abort()
 			return
 		}

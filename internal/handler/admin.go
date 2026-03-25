@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
@@ -45,7 +44,7 @@ func (a *Admin) listReports(c *gin.Context) {
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+			writeDomainError(c, domain.ErrInvalidInput)
 			return
 		}
 		limit = parsed
@@ -55,7 +54,7 @@ func (a *Admin) listReports(c *gin.Context) {
 	if raw := c.Query("offset"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+			writeDomainError(c, domain.ErrInvalidInput)
 			return
 		}
 		offset = parsed
@@ -63,7 +62,7 @@ func (a *Admin) listReports(c *gin.Context) {
 
 	reports, err := a.reports.ListOpen(c.Request.Context(), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		writeDomainError(c, err)
 		return
 	}
 
@@ -78,47 +77,34 @@ func (a *Admin) listReports(c *gin.Context) {
 func (a *Admin) action(c *gin.Context) {
 	reportID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	adminIDValue, ok := c.Get("userID")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	adminID, ok := adminIDValue.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	var req moderateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeValidationError(c, err)
 		return
 	}
 
 	if err := a.reports.Act(c.Request.Context(), adminID, reportID, req.Action, req.Note); err != nil {
-		a.writeError(c, err)
+		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-func (a *Admin) writeError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.ErrInvalidInput):
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
-	case errors.Is(err, domain.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": domain.ErrNotFound.Error()})
-	case errors.Is(err, domain.ErrConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": domain.ErrConflict.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-	}
 }
 
 func toReportView(report domain.Report) reportView {
