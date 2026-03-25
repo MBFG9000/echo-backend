@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -15,6 +16,7 @@ type Config struct {
 	DB         DB
 	Redis      Redis
 	JWT        JWT
+	CORS       CORS
 	Moderation Moderation
 }
 
@@ -46,6 +48,10 @@ type Redis struct {
 type JWT struct {
 	Secret string
 	TTL    time.Duration
+}
+
+type CORS struct {
+	AllowedOrigins []string
 }
 
 type Moderation struct {
@@ -85,8 +91,119 @@ func Load() (Config, error) {
 	// Moderation
 	cfg.Moderation.AutoHideThreshold = RequireInt(&errs, "MODERATION_AUTO_HIDE_THRESHOLD", false)
 
+<<<<<<< HEAD
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
+=======
+	dbPassword, err := requiredString("DB_PASSWORD", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbName, err := requiredString("DB_NAME", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbSSLMode, err := requiredString("DB_SSL_MODE", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	redisAddr, err := requiredString("REDIS_ADDR", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	redisPassword, err := requiredString("REDIS_PASSWORD", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	jwtSecret, err := requiredString("JWT_SECRET", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	corsAllowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if strings.TrimSpace(corsAllowedOrigins) == "" {
+		corsAllowedOrigins = "*"
+	}
+
+	readTimeout, err := mustDuration("SERVER_READ_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+
+	writeTimeout, err := mustDuration("SERVER_WRITE_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+
+	shutdownTimeout, err := mustDuration("SERVER_SHUTDOWN_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+
+	rateLimitWindow, err := mustDuration("SERVER_RATE_LIMIT_WINDOW")
+	if err != nil {
+		return Config{}, err
+	}
+
+	rateLimitRequests, err := mustInt64("SERVER_RATE_LIMIT_REQUESTS")
+	if err != nil {
+		return Config{}, err
+	}
+
+	redisDB, err := mustInt("REDIS_DB")
+	if err != nil {
+		return Config{}, err
+	}
+
+	jwtTTL, err := mustDuration("JWT_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+
+	autoHideThreshold, err := mustInt("MODERATION_AUTO_HIDE_THRESHOLD")
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg := Config{
+		Server: Server{
+			Host:              serverHost,
+			Port:              serverPort,
+			ReadTimeout:       readTimeout,
+			WriteTimeout:      writeTimeout,
+			ShutdownTimeout:   shutdownTimeout,
+			RateLimitRequests: rateLimitRequests,
+			RateLimitWindow:   rateLimitWindow,
+		},
+		DB: DB{
+			Host:     dbHost,
+			Port:     dbPort,
+			User:     dbUser,
+			Password: dbPassword,
+			Name:     dbName,
+			SSLMode:  dbSSLMode,
+		},
+		Redis: Redis{
+			Addr:     redisAddr,
+			Password: redisPassword,
+			DB:       redisDB,
+		},
+		JWT: JWT{
+			Secret: jwtSecret,
+			TTL:    jwtTTL,
+		},
+		CORS: CORS{
+			AllowedOrigins: splitAndTrim(corsAllowedOrigins),
+		},
+		Moderation: Moderation{
+			AutoHideThreshold: autoHideThreshold,
+		},
+>>>>>>> 75db0c2 (demo prep)
 	}
 
 	return cfg, nil
@@ -180,4 +297,17 @@ func RequireDuration(errs *[]error, key string, allowEmpty bool) time.Duration {
 		return 0
 	}
 	return parsed
+}
+
+func splitAndTrim(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	return result
 }

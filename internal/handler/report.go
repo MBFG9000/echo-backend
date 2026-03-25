@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/echo-app/echo/internal/domain"
@@ -28,46 +27,33 @@ func (r *Report) RegisterPrivate(rg *gin.RouterGroup) {
 func (r *Report) create(c *gin.Context) {
 	postID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	var req createReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
+		writeValidationError(c, err)
 		return
 	}
 
 	userIDValue, ok := c.Get("userID")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	userID, ok := userIDValue.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	autoHidden, err := r.reports.Create(c.Request.Context(), postID, userID, req.Reason)
 	if err != nil {
-		r.writeError(c, err)
+		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"ok": true, "auto_hidden": autoHidden})
-}
-
-func (r *Report) writeError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.ErrInvalidInput):
-		c.JSON(http.StatusBadRequest, gin.H{"error": domain.ErrInvalidInput.Error()})
-	case errors.Is(err, domain.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": domain.ErrNotFound.Error()})
-	case errors.Is(err, domain.ErrConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": domain.ErrConflict.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-	}
 }

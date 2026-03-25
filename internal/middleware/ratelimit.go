@@ -44,14 +44,14 @@ func (r *RateLimit) handler(scope string, limit int64, window time.Duration) gin
 		pipeline.Expire(ctx, key, window+5*time.Second)
 		_, err := pipeline.Exec(ctx)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			c.JSON(http.StatusInternalServerError, httpError{Error: "internal error", Code: "ERR_INTERNAL"})
 			c.Abort()
 			return
 		}
 
 		if countCmd.Val() > limit {
 			c.Header("Retry-After", strconv.FormatInt(int64(window.Seconds()), 10))
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+			c.JSON(http.StatusTooManyRequests, httpError{Error: "rate limit exceeded", Code: "ERR_RATE_LIMIT"})
 			c.Abort()
 			return
 		}

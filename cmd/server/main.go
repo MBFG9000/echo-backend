@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -69,13 +70,17 @@ func run() error {
 	reportHandler := handler.NewReport(reportService)
 	adminHandler := handler.NewAdmin(reportService)
 	wsHandler := handler.NewWS(feedHub)
+	healthHandler := handler.NewHealth(db, redisClient)
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
 	adminMiddleware := middleware.NewAdmin()
 	rateLimitMiddleware := middleware.NewRateLimit(redisClient)
+	corsMiddleware := middleware.NewCORS(cfg.CORS.AllowedOrigins)
+	requestLogMiddleware := middleware.NewRequestLog(slog.Default())
 
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(gin.Recovery(), corsMiddleware.Handler(), requestLogMiddleware.Handler())
+	healthHandler.Register(router)
 
 	authRoutes := router.Group("/auth")
 	authRoutes.Use(rateLimitMiddleware.General())
