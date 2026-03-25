@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/echo-app/echo/internal/config"
 	"github.com/echo-app/echo/internal/handler"
+	"github.com/echo-app/echo/internal/hub"
 	"github.com/echo-app/echo/internal/middleware"
 	"github.com/echo-app/echo/internal/repository"
 	"github.com/echo-app/echo/internal/service"
@@ -48,38 +50,65 @@ func run() error {
 	userRepo := repository.NewUser(db)
 	postRepo := repository.NewPost(db)
 	feedRepo := repository.NewFeed(db)
+	reportRepo := repository.NewReport(db)
+	feedHub := hub.NewHub()
+
+	hubCtx, hubCancel := context.WithCancel(context.Background())
+	defer hubCancel()
+	go feedHub.Run(hubCtx)
 
 	authService := service.NewAuth(userRepo, pseudonym.NewRandom(time.Now().UnixNano()), redisClient, cfg.JWT.Secret, cfg.JWT.TTL)
-	postService := service.NewPost(postRepo)
+	postService := service.NewPost(postRepo, feedHub)
 	feedService := service.NewFeed(feedRepo, redisClient)
+	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
 
 	authHandler := handler.NewAuth(authService)
 	postHandler := handler.NewPost(postService)
 	feedHandler := handler.NewFeed(feedService)
 	replyHandler := handler.NewReply(postService)
 	reactionHandler := handler.NewReaction(postService)
+	reportHandler := handler.NewReport(reportService)
+	adminHandler := handler.NewAdmin(reportService)
+	wsHandler := handler.NewWS(feedHub)
+	healthHandler := handler.NewHealth(db, redisClient)
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
-	rateLimitMiddleware := middleware.NewRateLimit(redisClient, cfg.Server.RateLimitRequests, cfg.Server.RateLimitWindow)
+	adminMiddleware := middleware.NewAdmin()
+	rateLimitMiddleware := middleware.NewRateLimit(redisClient)
+	corsMiddleware := middleware.NewCORS(cfg.CORS.AllowedOrigins)
+	requestLogMiddleware := middleware.NewRequestLog(slog.Default())
 
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery(), rateLimitMiddleware.Handler())
+	router.Use(gin.Recovery(), corsMiddleware.Handler(), requestLogMiddleware.Handler())
+	healthHandler.Register(router)
 
 	authRoutes := router.Group("/auth")
+	authRoutes.Use(rateLimitMiddleware.General())
 	authHandler.Register(authRoutes)
 
 	publicPosts := router.Group("/posts")
+	publicPosts.Use(rateLimitMiddleware.General())
 	postHandler.RegisterPublic(publicPosts)
 	replyHandler.RegisterPublic(publicPosts)
 
 	privatePosts := router.Group("/posts")
-	privatePosts.Use(authMiddleware.Handler())
-	postHandler.RegisterPrivate(privatePosts)
+	privatePosts.Use(authMiddleware.Handler(), rateLimitMiddleware.General())
+	postHandler.RegisterPrivate(privatePosts, rateLimitMiddleware.PostCreate())
 	replyHandler.RegisterPrivate(privatePosts)
 	reactionHandler.Register(privatePosts)
+	reportHandler.RegisterPrivate(privatePosts)
 
 	feedRoutes := router.Group("/feed")
+	feedRoutes.Use(rateLimitMiddleware.General())
 	feedHandler.Register(feedRoutes)
+
+	wsRoutes := router.Group("/ws")
+	wsRoutes.Use(rateLimitMiddleware.General())
+	wsHandler.Register(wsRoutes)
+
+	adminRoutes := router.Group("/admin")
+	adminRoutes.Use(authMiddleware.Handler(), adminMiddleware.Handler(), rateLimitMiddleware.General())
+	adminHandler.Register(adminRoutes)
 
 	server := &http.Server{
 		Addr:         cfg.Server.Address(),
@@ -107,6 +136,7 @@ func run() error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 	defer cancel()
+	hubCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)

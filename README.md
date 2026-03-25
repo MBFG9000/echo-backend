@@ -1,36 +1,13 @@
-# `<echo> backend`
+# echo-backend
 
-![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)
+Echo backend is an anonymous microblogging API for posts, replies, reactions, realtime feed updates, and moderation workflows. It uses JWT-based anonymous sessions, PostgreSQL for persistence, and Redis for sessions, caching, and rate limiting. The codebase follows handler → service → repository layering for clear boundaries.
 
-Anonymous microblogging API. No email. No phone. No PII stored.
-Built with Go + Gin + PostgreSQL + Redis.
+## Prerequisites
 
-## Architecture
+- Go 1.22
+- Docker
 
-```mermaid
-graph TD
-    Client -->|HTTPS / WSS| RateLimiter
-    RateLimiter -->|Redis token bucket| Router[Gin Router]
-    Router --> Auth[JWT Middleware]
-    Auth --> Handlers
-
-    subgraph Handlers
-        H1[POST /auth/session]
-        H2[POST /posts]
-        H3[GET /posts/feed]
-        H4[GET /ws/feed]
-    end
-
-    Handlers --> Services
-    Services --> GORM
-    Services --> Redis[(Redis\nsessions · trending)]
-    GORM --> Postgres[(PostgreSQL\nusers · posts · threads)]
-
-    style Redis fill:#DC382D,color:#fff
-    style Postgres fill:#336791,color:#fff
-```
-
-## Quick Start
+## Quick start
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/echo-backend
@@ -40,53 +17,55 @@ docker compose up -d
 go run ./cmd/server
 ```
 
-API: http://localhost:8080
+API base URL: http://localhost:8080
+
+## Architecture (ASCII)
+
+```text
+Client
+    |
+    v
+Gin Router
+    |
+    +--> Middleware (CORS, request log, auth, rate limit)
+    |
+    v
+Handlers
+    |
+    v
+Services
+    |
+    +--> Redis (sessions, feed cache, rate limit)
+    |
+    v
+Repositories
+    |
+    v
+PostgreSQL
+```
+
+## API endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | /health | No | Service health with DB and Redis checks |
+| POST | /auth/register | No | Create anonymous session and return JWT + pseudonym |
+| POST | /auth/refresh | Yes | Rotate JWT for current session |
+| POST | /posts | Yes | Create post (max 280 chars) |
+| GET | /posts/:id | No | Get post by ID |
+| DELETE | /posts/:id | Yes | Delete own post |
+| POST | /posts/:id/replies | Yes | Create reply to post |
+| GET | /posts/:id/replies | No | List post replies |
+| POST | /posts/:id/react | Yes | Upvote or downvote post |
+| POST | /posts/:id/report | Yes | Report post for moderation |
+| GET | /feed/latest | No | Latest feed with cursor pagination |
+| GET | /feed/trending | No | Trending feed |
+| GET | /ws/feed | No | Realtime feed websocket |
+| GET | /admin/reports | Admin | List open moderation reports |
+| POST | /admin/reports/:id/action | Admin | Resolve report with dismiss/hide/ban |
 
 ## Migrations
-
-Versioned SQL migrations are stored in [migrations](migrations).
 
 ```bash
 docker compose run --rm migrate
 ```
-
-On `docker compose up -d`, the `migrate` service also runs automatically once PostgreSQL is healthy.
-
-## Endpoints
-
-```
-POST  /auth/session        create anonymous session → JWT + pseudonym
-POST  /posts               create post  (≤280 chars, requires JWT)
-GET   /posts/feed          trending feed  ?page=1&limit=20
-POST  /posts/:id/reply     reply to post
-POST  /posts/:id/react     body: {"type":"up"|"down"}
-POST  /posts/:id/report    flag post for moderation
-GET   /ws/feed             WebSocket — real-time new posts
-```
-
-## Project Structure
-
-```
-echo-backend/
-├── cmd/server/         # main.go entrypoint
-├── internal/
-│   ├── handler/        # HTTP + WS handlers
-│   ├── service/        # business logic
-│   ├── repository/     # DB queries (GORM)
-│   └── middleware/     # JWT, rate-limit
-├── pkg/                # shared utils (pseudonym gen)
-├── docker-compose.yml
-└── .env.example
-```
-
-## Stack
-
-| Layer    | Tech                     |
-|----------|--------------------------|
-| Language | Go 1.22                  |
-| HTTP     | Gin                      |
-| ORM      | GORM + PostgreSQL        |
-| Cache    | Redis 7                  |
-| Auth     | JWT (golang-jwt/jwt/v5)  |
-| Realtime | WebSocket (gorilla/ws)   |
-| CI/CD    | GitHub Actions           |

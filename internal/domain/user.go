@@ -11,6 +11,7 @@ type User struct {
 	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Pseudonym string    `json:"pseudonym" gorm:"uniqueIndex;not null"`
 	TokenHash string    `json:"-" gorm:"not null"`
+	IsAdmin   bool      `json:"isAdmin" gorm:"not null;default:false"`
 	CreatedAt time.Time `json:"createdAt"`
 	ExpiresAt time.Time `json:"expiresAt" gorm:"not null"`
 }

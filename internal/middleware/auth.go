@@ -15,9 +15,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type httpError struct {
+	Error string `json:"error"`
+	Code  string `json:"code"`
+}
+
 type Claims struct {
 	UserID    string `json:"user_id"`
 	Pseudonym string `json:"pseudonym"`
+	IsAdmin   bool   `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -34,14 +40,14 @@ func (a *Auth) Handler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
 		if authorization == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
 
 		parts := strings.SplitN(authorization, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
@@ -53,27 +59,27 @@ func (a *Auth) Handler() gin.HandlerFunc {
 			return []byte(a.secret), nil
 		})
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(*Claims)
 		if !ok || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
 
 		if strings.TrimSpace(claims.UserID) == "" || strings.TrimSpace(claims.Pseudonym) == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
 
 		userID, err := uuid.Parse(claims.UserID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
@@ -81,17 +87,17 @@ func (a *Auth) Handler() gin.HandlerFunc {
 		hash, err := a.redis.Get(c.Request.Context(), a.sessionKey(userID)).Result()
 		if err != nil {
 			if errors.Is(err, redis.Nil) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+				c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 				c.Abort()
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			c.JSON(http.StatusInternalServerError, httpError{Error: "internal error", Code: "ERR_INTERNAL"})
 			c.Abort()
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(tokenDigest(parts[1]))); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": domain.ErrUnauthorized.Error()})
+			c.JSON(http.StatusUnauthorized, httpError{Error: "unauthorized", Code: "ERR_UNAUTHORIZED"})
 			c.Abort()
 			return
 		}
@@ -99,6 +105,7 @@ func (a *Auth) Handler() gin.HandlerFunc {
 		c.Set("userID", userID)
 		c.Set("user_id", userID)
 		c.Set("pseudonym", claims.Pseudonym)
+		c.Set("isAdmin", claims.IsAdmin)
 		c.Next()
 	}
 }
