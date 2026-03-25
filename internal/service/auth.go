@@ -20,6 +20,7 @@ import (
 type Claims struct {
 	UserID    string `json:"user_id"`
 	Pseudonym string `json:"pseudonym"`
+	IsAdmin   bool   `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -52,7 +53,7 @@ func (a *Auth) Register(ctx context.Context) (string, string, error) {
 
 	for range 8 {
 		pseudonymValue = a.generator.Generate()
-		signed, err := a.sign(userID, pseudonymValue, expiresAt)
+		signed, err := a.sign(userID, pseudonymValue, false, expiresAt)
 		if err != nil {
 			return "", "", fmt.Errorf("sign token: %w", err)
 		}
@@ -129,7 +130,7 @@ func (a *Auth) Refresh(ctx context.Context, oldToken string) (string, error) {
 	}
 
 	expiresAt := time.Now().Add(a.ttl)
-	newToken, err := a.sign(user.ID, user.Pseudonym, expiresAt)
+	newToken, err := a.sign(user.ID, user.Pseudonym, user.IsAdmin, expiresAt)
 	if err != nil {
 		return "", fmt.Errorf("sign token: %w", err)
 	}
@@ -150,10 +151,11 @@ func (a *Auth) Refresh(ctx context.Context, oldToken string) (string, error) {
 	return newToken, nil
 }
 
-func (a *Auth) sign(userID uuid.UUID, pseudonym string, expiresAt time.Time) (string, error) {
+func (a *Auth) sign(userID uuid.UUID, pseudonym string, isAdmin bool, expiresAt time.Time) (string, error) {
 	claims := Claims{
 		UserID:    userID.String(),
 		Pseudonym: pseudonym,
+		IsAdmin:   isAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

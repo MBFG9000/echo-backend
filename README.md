@@ -55,13 +55,20 @@ On `docker compose up -d`, the `migrate` service also runs automatically once Po
 ## Endpoints
 
 ```
-POST  /auth/session        create anonymous session → JWT + pseudonym
-POST  /posts               create post  (≤280 chars, requires JWT)
-GET   /posts/feed          trending feed  ?page=1&limit=20
-POST  /posts/:id/reply     reply to post
-POST  /posts/:id/react     body: {"type":"up"|"down"}
-POST  /posts/:id/report    flag post for moderation
-GET   /ws/feed             WebSocket — real-time new posts
+POST  /auth/register             create anonymous session → JWT + pseudonym
+POST  /auth/refresh              rotate session token
+POST  /posts                     create post (≤280 chars, requires JWT)
+GET   /posts/:id                 fetch post by id
+DELETE /posts/:id                delete own post
+POST  /posts/:id/replies         create reply
+GET   /posts/:id/replies         list replies
+POST  /posts/:id/react           body: {"kind":"upvote"|"downvote"}
+POST  /posts/:id/report          create moderation report
+GET   /feed/latest               latest feed with cursor pagination
+GET   /feed/trending             trending feed
+GET   /ws/feed                   WebSocket — real-time new posts
+GET   /admin/reports             list open reports (admin JWT)
+POST  /admin/reports/:id/action  body: {"action":"dismiss"|"hide"|"ban","note":"..."}
 ```
 
 ## Project Structure

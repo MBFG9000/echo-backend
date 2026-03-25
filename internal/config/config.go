@@ -11,10 +11,11 @@ import (
 )
 
 type Config struct {
-	Server Server
-	DB     DB
-	Redis  Redis
-	JWT    JWT
+	Server     Server
+	DB         DB
+	Redis      Redis
+	JWT        JWT
+	Moderation Moderation
 }
 
 type Server struct {
@@ -47,6 +48,10 @@ type JWT struct {
 	TTL    time.Duration
 }
 
+type Moderation struct {
+	AutoHideThreshold int
+}
+
 func Load() (Config, error) {
 	_ = godotenv.Load()
 	var errs []error
@@ -76,6 +81,9 @@ func Load() (Config, error) {
 	// JWT
 	cfg.JWT.Secret = RequireEnv(&errs, "JWT_SECRET", false)
 	cfg.JWT.TTL = RequireDuration(&errs, "JWT_TTL", false)
+
+	// Moderation
+	cfg.Moderation.AutoHideThreshold = RequireInt(&errs, "MODERATION_AUTO_HIDE_THRESHOLD", false)
 
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
