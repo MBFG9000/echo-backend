@@ -25,8 +25,16 @@ func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
 	rg.GET("/:id", p.getByID)
 }
 
-func (p *Post) RegisterPrivate(rg *gin.RouterGroup) {
-	rg.POST("", p.create)
+func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.HandlerFunc) {
+	if len(createMiddleware) == 0 {
+		rg.POST("", p.create)
+	} else {
+		handlers := make([]gin.HandlerFunc, 0, len(createMiddleware)+1)
+		handlers = append(handlers, createMiddleware...)
+		handlers = append(handlers, p.create)
+		rg.POST("", handlers...)
+	}
+
 	rg.DELETE("/:id", p.delete)
 }
 

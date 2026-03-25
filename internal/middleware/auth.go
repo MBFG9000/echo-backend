@@ -18,6 +18,7 @@ import (
 type Claims struct {
 	UserID    string `json:"user_id"`
 	Pseudonym string `json:"pseudonym"`
+	IsAdmin   bool   `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -99,6 +100,7 @@ func (a *Auth) Handler() gin.HandlerFunc {
 		c.Set("userID", userID)
 		c.Set("user_id", userID)
 		c.Set("pseudonym", claims.Pseudonym)
+		c.Set("isAdmin", claims.IsAdmin)
 		c.Next()
 	}
 }

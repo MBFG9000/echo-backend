@@ -47,7 +47,7 @@ func (p *Post) DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) e
 
 func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, error) {
 	var post domain.Post
-	err := p.db.WithContext(ctx).First(&post, "id = ?", postID).Error
+	err := p.db.WithContext(ctx).Where("id = ? AND is_hidden = false", postID).First(&post).Error
 	if err == nil {
 		return &post, nil
 	}
@@ -56,6 +56,20 @@ func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, err
 	}
 
 	return nil, err
+}
+
+func (p *Post) SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error {
+	result := p.db.WithContext(ctx).Model(&domain.Post{}).
+		Where("id = ?", postID).
+		Update("is_hidden", hidden)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+
+	return nil
 }
 
 func (p *Post) CreateReply(ctx context.Context, reply *domain.Reply) error {

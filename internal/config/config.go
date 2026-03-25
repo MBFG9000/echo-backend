@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	Server Server
-	DB     DB
-	Redis  Redis
-	JWT    JWT
+	Server     Server
+	DB         DB
+	Redis      Redis
+	JWT        JWT
+	Moderation Moderation
 }
 
 type Server struct {
@@ -44,6 +45,10 @@ type Redis struct {
 type JWT struct {
 	Secret string
 	TTL    time.Duration
+}
+
+type Moderation struct {
+	AutoHideThreshold int
 }
 
 func Load() (Config, error) {
@@ -139,6 +144,11 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	autoHideThreshold, err := mustInt("MODERATION_AUTO_HIDE_THRESHOLD")
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := Config{
 		Server: Server{
 			Host:              serverHost,
@@ -165,6 +175,9 @@ func Load() (Config, error) {
 		JWT: JWT{
 			Secret: jwtSecret,
 			TTL:    jwtTTL,
+		},
+		Moderation: Moderation{
+			AutoHideThreshold: autoHideThreshold,
 		},
 	}
 
