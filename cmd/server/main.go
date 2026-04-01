@@ -76,38 +76,42 @@ func run() error {
 	adminMiddleware := middleware.NewAdmin()
 	rateLimitMiddleware := middleware.NewRateLimit(redisClient)
 	corsMiddleware := middleware.NewCORS(cfg.CORS.AllowedOrigins)
-	requestLogMiddleware := middleware.NewRequestLog(slog.Default())
+	loggerMiddleware := middleware.NewLogger(slog.Default())
 
 	router := gin.New()
-	router.Use(gin.Recovery(), corsMiddleware.Handler(), requestLogMiddleware.Handler())
+	router.Use(
+		middleware.NoIP(!cfg.IsProduction()),
+		gin.Recovery(),
+		middleware.Security(cfg),
+		middleware.Tor(cfg),
+		rateLimitMiddleware.General(),
+		loggerMiddleware.Handler(),
+		corsMiddleware.Handler(),
+	)
 	healthHandler.Register(router)
 
 	authRoutes := router.Group("/auth")
-	authRoutes.Use(rateLimitMiddleware.General())
 	authHandler.Register(authRoutes)
 
 	publicPosts := router.Group("/posts")
-	publicPosts.Use(rateLimitMiddleware.General())
 	postHandler.RegisterPublic(publicPosts)
 	replyHandler.RegisterPublic(publicPosts)
 
 	privatePosts := router.Group("/posts")
-	privatePosts.Use(authMiddleware.Handler(), rateLimitMiddleware.General())
+	privatePosts.Use(authMiddleware.Handler())
 	postHandler.RegisterPrivate(privatePosts, rateLimitMiddleware.PostCreate())
 	replyHandler.RegisterPrivate(privatePosts)
 	reactionHandler.Register(privatePosts)
 	reportHandler.RegisterPrivate(privatePosts)
 
 	feedRoutes := router.Group("/feed")
-	feedRoutes.Use(rateLimitMiddleware.General())
 	feedHandler.Register(feedRoutes)
 
 	wsRoutes := router.Group("/ws")
-	wsRoutes.Use(rateLimitMiddleware.General())
 	wsHandler.Register(wsRoutes)
 
 	adminRoutes := router.Group("/admin")
-	adminRoutes.Use(authMiddleware.Handler(), adminMiddleware.Handler(), rateLimitMiddleware.General())
+	adminRoutes.Use(authMiddleware.Handler(), adminMiddleware.Handler())
 	adminHandler.Register(adminRoutes)
 
 	server := &http.Server{

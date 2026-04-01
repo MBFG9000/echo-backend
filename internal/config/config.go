@@ -12,12 +12,14 @@ import (
 )
 
 type Config struct {
-	Server     Server
-	DB         DB
-	Redis      Redis
-	JWT        JWT
-	CORS       CORS
-	Moderation Moderation
+	Env           string
+	OnionAddress  string
+	Server        Server
+	DB            DB
+	Redis         Redis
+	JWT           JWT
+	CORS          CORS
+	Moderation    Moderation
 }
 
 type Server struct {
@@ -63,6 +65,18 @@ func Load() (Config, error) {
 	var errs []error
 	var cfg Config
 
+	cfg.Env = strings.TrimSpace(os.Getenv("APP_ENV"))
+	if cfg.Env == "" {
+		cfg.Env = "development"
+	}
+	if !strings.EqualFold(cfg.Env, "production") {
+		cfg.Env = "development"
+	} else {
+		cfg.Env = "production"
+	}
+
+	cfg.OnionAddress = strings.TrimSpace(os.Getenv("ONION_ADDRESS"))
+
 	//Server
 	cfg.Server.Host = RequireEnv(&errs, "SERVER_HOST", false)
 	cfg.Server.Port = RequireEnv(&errs, "SERVER_PORT", false)
@@ -91,119 +105,14 @@ func Load() (Config, error) {
 	// Moderation
 	cfg.Moderation.AutoHideThreshold = RequireInt(&errs, "MODERATION_AUTO_HIDE_THRESHOLD", false)
 
-<<<<<<< HEAD
-	if len(errs) > 0 {
-		return Config{}, errors.Join(errs...)
-=======
-	dbPassword, err := requiredString("DB_PASSWORD", false)
-	if err != nil {
-		return Config{}, err
-	}
-
-	dbName, err := requiredString("DB_NAME", false)
-	if err != nil {
-		return Config{}, err
-	}
-
-	dbSSLMode, err := requiredString("DB_SSL_MODE", false)
-	if err != nil {
-		return Config{}, err
-	}
-
-	redisAddr, err := requiredString("REDIS_ADDR", false)
-	if err != nil {
-		return Config{}, err
-	}
-
-	redisPassword, err := requiredString("REDIS_PASSWORD", true)
-	if err != nil {
-		return Config{}, err
-	}
-
-	jwtSecret, err := requiredString("JWT_SECRET", false)
-	if err != nil {
-		return Config{}, err
-	}
-
 	corsAllowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if strings.TrimSpace(corsAllowedOrigins) == "" {
 		corsAllowedOrigins = "*"
 	}
+	cfg.CORS.AllowedOrigins = splitAndTrim(corsAllowedOrigins)
 
-	readTimeout, err := mustDuration("SERVER_READ_TIMEOUT")
-	if err != nil {
-		return Config{}, err
-	}
-
-	writeTimeout, err := mustDuration("SERVER_WRITE_TIMEOUT")
-	if err != nil {
-		return Config{}, err
-	}
-
-	shutdownTimeout, err := mustDuration("SERVER_SHUTDOWN_TIMEOUT")
-	if err != nil {
-		return Config{}, err
-	}
-
-	rateLimitWindow, err := mustDuration("SERVER_RATE_LIMIT_WINDOW")
-	if err != nil {
-		return Config{}, err
-	}
-
-	rateLimitRequests, err := mustInt64("SERVER_RATE_LIMIT_REQUESTS")
-	if err != nil {
-		return Config{}, err
-	}
-
-	redisDB, err := mustInt("REDIS_DB")
-	if err != nil {
-		return Config{}, err
-	}
-
-	jwtTTL, err := mustDuration("JWT_TTL")
-	if err != nil {
-		return Config{}, err
-	}
-
-	autoHideThreshold, err := mustInt("MODERATION_AUTO_HIDE_THRESHOLD")
-	if err != nil {
-		return Config{}, err
-	}
-
-	cfg := Config{
-		Server: Server{
-			Host:              serverHost,
-			Port:              serverPort,
-			ReadTimeout:       readTimeout,
-			WriteTimeout:      writeTimeout,
-			ShutdownTimeout:   shutdownTimeout,
-			RateLimitRequests: rateLimitRequests,
-			RateLimitWindow:   rateLimitWindow,
-		},
-		DB: DB{
-			Host:     dbHost,
-			Port:     dbPort,
-			User:     dbUser,
-			Password: dbPassword,
-			Name:     dbName,
-			SSLMode:  dbSSLMode,
-		},
-		Redis: Redis{
-			Addr:     redisAddr,
-			Password: redisPassword,
-			DB:       redisDB,
-		},
-		JWT: JWT{
-			Secret: jwtSecret,
-			TTL:    jwtTTL,
-		},
-		CORS: CORS{
-			AllowedOrigins: splitAndTrim(corsAllowedOrigins),
-		},
-		Moderation: Moderation{
-			AutoHideThreshold: autoHideThreshold,
-		},
->>>>>>> 75db0c2 (demo prep)
+	if len(errs) > 0 {
+		return Config{}, errors.Join(errs...)
 	}
 
 	return cfg, nil
@@ -310,4 +219,8 @@ func splitAndTrim(value string) []string {
 	}
 
 	return result
+}
+
+func (c Config) IsProduction() bool {
+	return c.Env == "production"
 }
