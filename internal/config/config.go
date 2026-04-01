@@ -12,12 +12,14 @@ import (
 )
 
 type Config struct {
-	Server     Server
-	DB         DB
-	Redis      Redis
-	JWT        JWT
-	CORS       CORS
-	Moderation Moderation
+	Env           string
+	OnionAddress  string
+	Server        Server
+	DB            DB
+	Redis         Redis
+	JWT           JWT
+	CORS          CORS
+	Moderation    Moderation
 }
 
 type Server struct {
@@ -62,6 +64,18 @@ func Load() (Config, error) {
 	_ = godotenv.Load()
 	var errs []error
 	var cfg Config
+
+	cfg.Env = strings.TrimSpace(os.Getenv("APP_ENV"))
+	if cfg.Env == "" {
+		cfg.Env = "development"
+	}
+	if !strings.EqualFold(cfg.Env, "production") {
+		cfg.Env = "development"
+	} else {
+		cfg.Env = "production"
+	}
+
+	cfg.OnionAddress = strings.TrimSpace(os.Getenv("ONION_ADDRESS"))
 
 	//Server
 	cfg.Server.Host = RequireEnv(&errs, "SERVER_HOST", false)
@@ -208,4 +222,8 @@ func splitAndTrim(value string) []string {
 	}
 
 	return result
+}
+
+func (c Config) IsProduction() bool {
+	return c.Env == "production"
 }
