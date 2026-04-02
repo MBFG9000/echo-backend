@@ -119,10 +119,11 @@ func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kin
 		scoreDelta := 0
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			created := domain.Reaction{PostID: postID, UserID: userID, Kind: kind}
-			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&created).Error; err != nil {
-				return err
+			result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&created)
+			if result.Error != nil {
+				return result.Error
 			}
-			if tx.RowsAffected > 0 {
+			if result.RowsAffected > 0 {
 				scoreDelta = reactionValue(kind)
 			}
 		} else if existing.Kind != kind {
