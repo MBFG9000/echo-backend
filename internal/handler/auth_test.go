@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -51,12 +52,14 @@ func TestAuthHandler_Register(t *testing.T) {
 			}
 
 			if tc.expectedCode != "" {
-				var body map[string]string
+				var body struct {
+					Code string `json:"code"`
+				}
 				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 					t.Fatal(err)
 				}
-				if body["code"] != tc.expectedCode {
-					t.Fatalf("expected code %s got %s", tc.expectedCode, body["code"])
+				if body.Code != tc.expectedCode {
+					t.Fatalf("expected code %s got %s", tc.expectedCode, body.Code)
 				}
 			}
 		})
@@ -66,15 +69,14 @@ func TestAuthHandler_Register(t *testing.T) {
 func TestAuthHandler_Refresh(t *testing.T) {
 	cases := []struct {
 		name           string
-		headers        map[string]string
+		payload        string
 		svc            *authSvcStub
 		expectedStatus int
 		expectedCode   string
 	}{
-		{name: "missing auth", headers: nil, expectedStatus: http.StatusUnauthorized, expectedCode: "ERR_UNAUTHORIZED"},
-		{name: "bad format", headers: map[string]string{"Authorization": "Bad token"}, expectedStatus: http.StatusUnauthorized, expectedCode: "ERR_UNAUTHORIZED"},
-		{name: "success", headers: map[string]string{"Authorization": "Bearer tok"}, svc: &authSvcStub{refresh: func(ctx context.Context, token string) (string, error) { return "newtok", nil }}, expectedStatus: http.StatusOK},
-		{name: "unauthorized", headers: map[string]string{"Authorization": "Bearer tok"}, svc: &authSvcStub{refresh: func(ctx context.Context, token string) (string, error) { return "", domain.ErrUnauthorized }}, expectedStatus: http.StatusUnauthorized, expectedCode: "ERR_UNAUTHORIZED"},
+		{name: "missing token", payload: `{}`, expectedStatus: http.StatusBadRequest, expectedCode: "ERR_VALIDATION"},
+		{name: "success", payload: `{"token":"tok"}`, svc: &authSvcStub{refresh: func(ctx context.Context, token string) (string, error) { return "newtok", nil }}, expectedStatus: http.StatusOK},
+		{name: "unauthorized", payload: `{"token":"tok"}`, svc: &authSvcStub{refresh: func(ctx context.Context, token string) (string, error) { return "", domain.ErrUnauthorized }}, expectedStatus: http.StatusUnauthorized, expectedCode: "ERR_UNAUTHORIZED"},
 	}
 
 	for _, tc := range cases {
@@ -84,10 +86,8 @@ func TestAuthHandler_Refresh(t *testing.T) {
 			h := NewAuth(tc.svc)
 			h.Register(r.Group("/auth"))
 
-			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-			for k, v := range tc.headers {
-				req.Header.Set(k, v)
-			}
+			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", bytes.NewBufferString(tc.payload))
+			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -96,12 +96,14 @@ func TestAuthHandler_Refresh(t *testing.T) {
 			}
 
 			if tc.expectedCode != "" {
-				var body map[string]string
+				var body struct {
+					Code string `json:"code"`
+				}
 				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 					t.Fatal(err)
 				}
-				if body["code"] != tc.expectedCode {
-					t.Fatalf("expected code %s got %s", tc.expectedCode, body["code"])
+				if body.Code != tc.expectedCode {
+					t.Fatalf("expected code %s got %s", tc.expectedCode, body.Code)
 				}
 			}
 		})

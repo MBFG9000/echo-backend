@@ -106,6 +106,9 @@ func TestPostHandler_GetByID(t *testing.T) {
 			p.RegisterPublic(r.Group("/posts"))
 
 			req := httptest.NewRequest(http.MethodGet, "/posts/"+tc.id, nil)
+			body, _ := json.Marshal(map[string]string{"id": tc.id})
+			req = httptest.NewRequest(http.MethodPost, "/posts/get", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -143,7 +146,9 @@ func TestPostHandler_Delete(t *testing.T) {
 			p := NewPost(tc.service)
 			p.RegisterPrivate(r.Group("/posts"))
 
-			req := httptest.NewRequest(http.MethodDelete, "/posts/"+postID.String(), nil)
+			body, _ := json.Marshal(map[string]string{"id": postID.String()})
+			req := httptest.NewRequest(http.MethodPost, "/posts/delete", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
