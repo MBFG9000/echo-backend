@@ -14,19 +14,42 @@ import (
 )
 
 type RateLimit struct {
-	redis *redis.Client
+	redis            *redis.Client
+	generalLimit     int64
+	generalWindow    time.Duration
+	postCreateLimit  int64
+	postCreateWindow time.Duration
 }
 
-func NewRateLimit(redisClient *redis.Client) *RateLimit {
-	return &RateLimit{redis: redisClient}
+func NewRateLimit(redisClient *redis.Client, generalLimit int64, generalWindow time.Duration, postCreateLimit int64, postCreateWindow time.Duration) *RateLimit {
+	if generalLimit <= 0 {
+		generalLimit = 60
+	}
+	if generalWindow <= 0 {
+		generalWindow = time.Minute
+	}
+	if postCreateLimit <= 0 {
+		postCreateLimit = 10
+	}
+	if postCreateWindow <= 0 {
+		postCreateWindow = time.Minute
+	}
+
+	return &RateLimit{
+		redis:            redisClient,
+		generalLimit:     generalLimit,
+		generalWindow:    generalWindow,
+		postCreateLimit:  postCreateLimit,
+		postCreateWindow: postCreateWindow,
+	}
 }
 
 func (r *RateLimit) General() gin.HandlerFunc {
-	return r.handler("general", 60, time.Minute)
+	return r.handler("general", r.generalLimit, r.generalWindow)
 }
 
 func (r *RateLimit) PostCreate() gin.HandlerFunc {
-	return r.handler("posts", 10, time.Minute)
+	return r.handler("posts", r.postCreateLimit, r.postCreateWindow)
 }
 
 func (r *RateLimit) handler(scope string, limit int64, window time.Duration) gin.HandlerFunc {

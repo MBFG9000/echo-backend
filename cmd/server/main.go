@@ -74,7 +74,17 @@ func run() error {
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
 	adminMiddleware := middleware.NewAdmin()
-	rateLimitMiddleware := middleware.NewRateLimit(redisClient)
+	postCreateLimit := cfg.Server.RateLimitRequests / 6
+	if postCreateLimit < 1 {
+		postCreateLimit = 1
+	}
+	rateLimitMiddleware := middleware.NewRateLimit(
+		redisClient,
+		cfg.Server.RateLimitRequests,
+		cfg.Server.RateLimitWindow,
+		postCreateLimit,
+		cfg.Server.RateLimitWindow,
+	)
 	corsMiddleware := middleware.NewCORS(cfg.CORS.AllowedOrigins)
 	loggerMiddleware := middleware.NewLogger(slog.Default())
 

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/hub"
 	"github.com/gin-gonic/gin"
@@ -20,9 +18,6 @@ func NewWS(h *hub.Hub) *WS {
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			CheckOrigin: func(*http.Request) bool {
-				return true
-			},
 		},
 	}
 }

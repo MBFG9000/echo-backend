@@ -50,19 +50,19 @@ PostgreSQL
 |---|---|---|---|
 | GET | /health | No | Service health with DB and Redis checks |
 | POST | /auth/register | No | Create anonymous session and return JWT + pseudonym |
-| POST | /auth/refresh | Yes | Rotate JWT for current session |
+| POST | /auth/refresh | No | Rotate JWT for current session (token in body) |
 | POST | /posts | Yes | Create post (max 280 chars) |
-| GET | /posts/:id | No | Get post by ID |
-| DELETE | /posts/:id | Yes | Delete own post |
-| POST | /posts/:id/replies | Yes | Create reply to post |
-| GET | /posts/:id/replies | No | List post replies |
-| POST | /posts/:id/react | Yes | Upvote or downvote post |
-| POST | /posts/:id/report | Yes | Report post for moderation |
-| GET | /feed/latest | No | Latest feed with cursor pagination |
-| GET | /feed/trending | No | Trending feed |
+| POST | /posts/get | No | Get post by ID |
+| POST | /posts/delete | Yes | Delete own post |
+| POST | /posts/replies/create | Yes | Create reply to post |
+| POST | /posts/replies/list | No | List post replies |
+| POST | /posts/react | Yes | Upvote or downvote post |
+| POST | /posts/report | Yes | Report post for moderation |
+| POST | /feed/latest | No | Latest feed with cursor pagination |
+| POST | /feed/trending | No | Trending feed |
 | GET | /ws/feed | No | Realtime feed websocket |
-| GET | /admin/reports | Admin | List open moderation reports |
-| POST | /admin/reports/:id/action | Admin | Resolve report with dismiss/hide/ban |
+| POST | /admin/reports/list | Admin | List open moderation reports |
+| POST | /admin/reports/action | Admin | Resolve report with dismiss/hide/ban |
 
 ## Migrations
 
