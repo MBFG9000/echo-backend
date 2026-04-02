@@ -136,11 +136,11 @@ func RequireEnv(errs *[]error, key string, allowEmpty bool) string {
 	value, ok := os.LookupEnv(key)
 
 	if !ok {
-		*errs = append(*errs, fmt.Errorf("Env variable %s does not exist", key))
+		*errs = append(*errs, fmt.Errorf("env variable %s does not exist", key))
 		return ""
 	}
 	if value == "" && !allowEmpty {
-		*errs = append(*errs, fmt.Errorf("Env variable %s is empty", key))
+		*errs = append(*errs, fmt.Errorf("env variable %s is empty", key))
 		return ""
 	}
 

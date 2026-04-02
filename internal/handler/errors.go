@@ -42,10 +42,6 @@ func writeValidationError(c *gin.Context, err error) {
 	})
 }
 
-func writeInternalError(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, errorResponse{Error: messageByCode("ERR_INTERNAL"), Code: "ERR_INTERNAL"})
-}
-
 func mapDomainError(err error) (int, string) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidInput):
