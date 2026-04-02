@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,27 +13,37 @@ type Feed struct {
 	feeds domain.FeedService
 }
 
+type latestFeedRequest struct {
+	Limit  int    `json:"limit"`
+	Cursor string `json:"cursor"`
+}
+
+type trendingFeedRequest struct {
+	Limit int `json:"limit"`
+}
+
 func NewFeed(feeds domain.FeedService) *Feed {
 	return &Feed{feeds: feeds}
 }
 
 func (f *Feed) Register(rg *gin.RouterGroup) {
-	rg.GET("/latest", f.latest)
-	rg.GET("/trending", f.trending)
+	rg.POST("/latest", f.latest)
+	rg.POST("/trending", f.trending)
 }
 
 func (f *Feed) latest(c *gin.Context) {
-	limit := 20
-	if raw := c.Query("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		limit = parsed
+	var req latestFeedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
 	}
 
-	cursor, err := parseCursor(c.Query("cursor"))
+	limit := 20
+	if req.Limit > 0 {
+		limit = req.Limit
+	}
+
+	cursor, err := parseCursor(req.Cursor)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
@@ -55,14 +64,15 @@ func (f *Feed) latest(c *gin.Context) {
 }
 
 func (f *Feed) trending(c *gin.Context) {
+	var req trendingFeedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
 	limit := 20
-	if raw := c.Query("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		limit = parsed
+	if req.Limit > 0 {
+		limit = req.Limit
 	}
 
 	posts, err := f.feeds.Trending(c.Request.Context(), limit)

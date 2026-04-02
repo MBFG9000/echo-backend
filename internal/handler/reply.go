@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,13 @@ type Reply struct {
 }
 
 type createReplyRequest struct {
+	PostID  string `json:"postId" binding:"required"`
 	Content string `json:"content" binding:"required,max=280"`
+}
+
+type listRepliesRequest struct {
+	PostID string `json:"postId" binding:"required"`
+	Limit  int    `json:"limit"`
 }
 
 func NewReply(posts domain.PostService) *Reply {
@@ -22,23 +27,23 @@ func NewReply(posts domain.PostService) *Reply {
 }
 
 func (r *Reply) RegisterPublic(rg *gin.RouterGroup) {
-	rg.GET("/:id/replies", r.list)
+	rg.POST("/replies/list", r.list)
 }
 
 func (r *Reply) RegisterPrivate(rg *gin.RouterGroup) {
-	rg.POST("/:id/replies", r.create)
+	rg.POST("/replies/create", r.create)
 }
 
 func (r *Reply) create(c *gin.Context) {
-	postID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		writeDomainError(c, domain.ErrInvalidInput)
-		return
-	}
-
 	var req createReplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeValidationError(c, err)
+		return
+	}
+
+	postID, err := uuid.Parse(req.PostID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
@@ -74,20 +79,21 @@ func (r *Reply) create(c *gin.Context) {
 }
 
 func (r *Reply) list(c *gin.Context) {
-	postID, err := uuid.Parse(c.Param("id"))
+	var req listRepliesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	postID, err := uuid.Parse(req.PostID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
 	limit := 20
-	if raw := c.Query("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		limit = parsed
+	if req.Limit > 0 {
+		limit = req.Limit
 	}
 
 	replies, err := r.posts.ListReplies(c.Request.Context(), postID, limit)

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -14,8 +13,14 @@ type Admin struct {
 }
 
 type moderateRequest struct {
-	Action domain.ModerationAction `json:"action" binding:"required"`
-	Note   string                  `json:"note"`
+	ReportID string                  `json:"reportId" binding:"required"`
+	Action   domain.ModerationAction `json:"action" binding:"required"`
+	Note     string                  `json:"note"`
+}
+
+type listReportsRequest struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
 }
 
 type reportView struct {
@@ -35,29 +40,25 @@ func NewAdmin(reports domain.ReportService) *Admin {
 }
 
 func (a *Admin) Register(rg *gin.RouterGroup) {
-	rg.GET("/reports", a.listReports)
-	rg.POST("/reports/:id/action", a.action)
+	rg.POST("/reports/list", a.listReports)
+	rg.POST("/reports/action", a.action)
 }
 
 func (a *Admin) listReports(c *gin.Context) {
+	var req listReportsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
 	limit := 20
-	if raw := c.Query("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		limit = parsed
+	if req.Limit > 0 {
+		limit = req.Limit
 	}
 
 	offset := 0
-	if raw := c.Query("offset"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		offset = parsed
+	if req.Offset > 0 {
+		offset = req.Offset
 	}
 
 	reports, err := a.reports.ListOpen(c.Request.Context(), limit, offset)
@@ -75,12 +76,6 @@ func (a *Admin) listReports(c *gin.Context) {
 }
 
 func (a *Admin) action(c *gin.Context) {
-	reportID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		writeDomainError(c, domain.ErrInvalidInput)
-		return
-	}
-
 	adminIDValue, ok := c.Get("userID")
 	if !ok {
 		writeDomainError(c, domain.ErrUnauthorized)
@@ -96,6 +91,12 @@ func (a *Admin) action(c *gin.Context) {
 	var req moderateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeValidationError(c, err)
+		return
+	}
+
+	reportID, err := uuid.Parse(req.ReportID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 

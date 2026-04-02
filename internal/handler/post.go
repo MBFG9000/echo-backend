@@ -16,12 +16,20 @@ type createPostRequest struct {
 	Content string `json:"content" binding:"required,max=280"`
 }
 
+type getPostRequest struct {
+	ID string `json:"id" binding:"required"`
+}
+
+type deletePostRequest struct {
+	ID string `json:"id" binding:"required"`
+}
+
 func NewPost(posts domain.PostService) *Post {
 	return &Post{posts: posts}
 }
 
 func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
-	rg.GET("/:id", p.getByID)
+	rg.POST("/get", p.getByID)
 }
 
 func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.HandlerFunc) {
@@ -34,7 +42,7 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 		rg.POST("", handlers...)
 	}
 
-	rg.DELETE("/:id", p.delete)
+	rg.POST("/delete", p.delete)
 }
 
 func (p *Post) create(c *gin.Context) {
@@ -78,6 +86,12 @@ func (p *Post) create(c *gin.Context) {
 }
 
 func (p *Post) delete(c *gin.Context) {
+	var req deletePostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
 	userIDValue, ok := c.Get("userID")
 	if !ok {
 		writeDomainError(c, domain.ErrUnauthorized)
@@ -90,7 +104,7 @@ func (p *Post) delete(c *gin.Context) {
 		return
 	}
 
-	postID, err := uuid.Parse(c.Param("id"))
+	postID, err := uuid.Parse(req.ID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
@@ -106,7 +120,13 @@ func (p *Post) delete(c *gin.Context) {
 }
 
 func (p *Post) getByID(c *gin.Context) {
-	postID, err := uuid.Parse(c.Param("id"))
+	var req getPostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	postID, err := uuid.Parse(req.ID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
