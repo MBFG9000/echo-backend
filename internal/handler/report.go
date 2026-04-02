@@ -56,5 +56,5 @@ func (r *Report) create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"ok": true, "auto_hidden": autoHidden})
+	c.JSON(http.StatusCreated, gin.H{"ok": true, "autoHidden": autoHidden})
 }

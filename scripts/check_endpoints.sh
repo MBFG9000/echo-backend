@@ -189,9 +189,9 @@ echo "BASE_URL=$BASE_URL"
 
 req "health" GET "$BASE_URL/health" 200
 
-ROUTE_PROBE="$(curl -sS --max-time 10 -o "$RESP_BODY" -w "%{http_code}" -X POST "$BASE_URL/posts/get" -H 'Content-Type: application/json' -d '{"id":"00000000-0000-0000-0000-000000000000"}')"
+ROUTE_PROBE="$(curl -sS --max-time 10 -o "$RESP_BODY" -w "%{http_code}" -X POST "$BASE_URL/posts/get" -H 'Content-Type: application/json' -d '{}')"
 OBJECT_MODE=0
-if [[ "$ROUTE_PROBE" != "404" ]]; then
+if [[ "$ROUTE_PROBE" == "400" ]]; then
   OBJECT_MODE=1
 fi
 
@@ -281,10 +281,10 @@ REPORT_ID="$(json_get reports[0].id)"
 require_non_empty "report id" "$REPORT_ID"
 
 if [[ "$OBJECT_MODE" == "1" ]]; then
-  req "admin reports action" POST "$BASE_URL/admin/reports/action" 200 '{"reportId":"'"$REPORT_ID"'","action":"hide","note":"checked by script"}' "$ADMIN_TOKEN"
+  req "admin reports action" POST "$BASE_URL/admin/reports/action" 200 '{"reportId":"'"$REPORT_ID"'","action":"dismiss","note":"checked by script"}' "$ADMIN_TOKEN"
   req "posts delete" POST "$BASE_URL/posts/delete" 200 '{"id":"'"$POST_ID"'"}' "$ADMIN_TOKEN"
 else
-  req "admin reports action" POST "$BASE_URL/admin/reports/$REPORT_ID/action" 200 '{"action":"hide","note":"checked by script"}' "$ADMIN_TOKEN"
+  req "admin reports action" POST "$BASE_URL/admin/reports/$REPORT_ID/action" 200 '{"action":"dismiss","note":"checked by script"}' "$ADMIN_TOKEN"
   req "posts delete" DELETE "$BASE_URL/posts/$POST_ID" 200 '' "$ADMIN_TOKEN"
 fi
 
