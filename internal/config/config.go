@@ -92,7 +92,13 @@ func Load() (Config, error) {
 	cfg.CORS.AllowedOrigins = splitAndTrim(EnvOrDefault("CORS_ALLOWED_ORIGINS", "*"))
 
 	// Moderation
-	cfg.Moderation.AutoHideThreshold = RequireInt(&errs, "MODERATION_AUTO_HIDE_THRESHOLD", false)
+	moderationThresholdRaw := EnvOrDefault("MODERATION_AUTO_HIDE_THRESHOLD", "3")
+	moderationThreshold, err := strconv.Atoi(moderationThresholdRaw)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("cant parse %s to int, Error: %w", moderationThresholdRaw, err))
+	} else {
+		cfg.Moderation.AutoHideThreshold = moderationThreshold
+	}
 
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
