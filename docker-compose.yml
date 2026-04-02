@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: echo
+      POSTGRES_PASSWORD: echo
+      POSTGRES_DB: echo
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echo -d echo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://echo:echo@postgres:5432/echo?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
