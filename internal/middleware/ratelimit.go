@@ -68,5 +68,5 @@ func subjectKey(c *gin.Context) string {
 		return "token:" + hex.EncodeToString(sum[:])
 	}
 
-	return "ip:" + c.ClientIP()
+	return "subject:anon"
 }
