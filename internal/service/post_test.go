@@ -10,13 +10,17 @@ import (
 )
 
 type postRepoStub struct {
-	create       func(ctx context.Context, post *domain.Post) error
-	deleteByAuth func(ctx context.Context, postID, authorID uuid.UUID) error
-	getByID      func(ctx context.Context, postID uuid.UUID) (*domain.Post, error)
-	setHidden    func(ctx context.Context, postID uuid.UUID, hidden bool) error
-	createReply  func(ctx context.Context, reply *domain.Reply) error
-	listReplies  func(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error)
-	upsertReact  func(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error
+	create           func(ctx context.Context, post *domain.Post) error
+	deleteByAuth     func(ctx context.Context, postID, authorID uuid.UUID) error
+	getByID          func(ctx context.Context, postID uuid.UUID) (*domain.Post, error)
+	search           func(ctx context.Context, query string, limit int) ([]domain.Post, error)
+	setHidden        func(ctx context.Context, postID uuid.UUID, hidden bool) error
+	createReply      func(ctx context.Context, reply *domain.Reply) error
+	listReplies      func(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error)
+	updateReply      func(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error)
+	deleteReply      func(ctx context.Context, replyID, authorID uuid.UUID) error
+	upsertReplyReact func(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error
+	upsertReact      func(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error
 }
 
 func (s *postRepoStub) Create(ctx context.Context, post *domain.Post) error {
@@ -40,6 +44,13 @@ func (s *postRepoStub) GetByID(ctx context.Context, postID uuid.UUID) (*domain.P
 	return nil, domain.ErrNotFound
 }
 
+func (s *postRepoStub) Search(ctx context.Context, query string, limit int) ([]domain.Post, error) {
+	if s.search != nil {
+		return s.search(ctx, query, limit)
+	}
+	return nil, nil
+}
+
 func (s *postRepoStub) SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error {
 	if s.setHidden != nil {
 		return s.setHidden(ctx, postID, hidden)
@@ -61,9 +72,30 @@ func (s *postRepoStub) ListReplies(ctx context.Context, postID uuid.UUID, limit 
 	return nil, nil
 }
 
+func (s *postRepoStub) UpdateReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
+	if s.updateReply != nil {
+		return s.updateReply(ctx, replyID, authorID, content)
+	}
+	return nil, nil
+}
+
+func (s *postRepoStub) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error {
+	if s.deleteReply != nil {
+		return s.deleteReply(ctx, replyID, authorID)
+	}
+	return nil
+}
+
 func (s *postRepoStub) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
 	if s.upsertReact != nil {
 		return s.upsertReact(ctx, postID, userID, kind)
+	}
+	return nil
+}
+
+func (s *postRepoStub) UpsertReplyReaction(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	if s.upsertReplyReact != nil {
+		return s.upsertReplyReact(ctx, replyID, userID, kind)
 	}
 	return nil
 }
@@ -171,10 +203,12 @@ func TestPost_React(t *testing.T) {
 		name    string
 		kind    domain.ReactionKind
 		postOK  bool
+		repoErr error
 		wantErr error
 	}{
 		{name: "invalid kind", kind: "invalid", postOK: true, wantErr: domain.ErrInvalidInput},
 		{name: "post not found", kind: domain.Upvote, postOK: false, wantErr: domain.ErrNotFound},
+		{name: "duplicate reaction", kind: domain.Upvote, postOK: true, repoErr: domain.ErrConflict, wantErr: domain.ErrConflict},
 		{name: "success", kind: domain.Downvote, postOK: true, wantErr: nil},
 	}
 
@@ -188,7 +222,7 @@ func TestPost_React(t *testing.T) {
 				return &domain.Post{ID: postID}, nil
 			}
 			stubRepo.upsertReact = func(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
-				return nil
+				return tc.repoErr
 			}
 
 			p := NewPost(stubRepo, nil)
@@ -219,7 +253,7 @@ func TestPost_CreateReplyAndList(t *testing.T) {
 	}
 
 	p := NewPost(stubRepo, nil)
-	_, err := p.CreateReply(context.Background(), postID, authorID, "pseudonym", "reply")
+	_, err := p.CreateReply(context.Background(), postID, nil, authorID, "pseudonym", "reply")
 	if err != nil {
 		t.Fatal(err)
 	}

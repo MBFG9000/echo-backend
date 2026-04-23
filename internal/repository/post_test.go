@@ -70,4 +70,16 @@ func TestPostRepository_RepliesAndReactions(t *testing.T) {
 	if p2.Score != 1 {
 		t.Fatalf("expected score 1 got %d", p2.Score)
 	}
+
+	if err := repo.UpsertReaction(context.Background(), post.ID, reply.AuthorID, domain.Upvote); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("expected conflict on duplicate upvote, got %v", err)
+	}
+
+	p3, err := repo.GetByID(context.Background(), post.ID)
+	if err != nil {
+		t.Fatalf("get post failed: %v", err)
+	}
+	if p3.Score != 1 {
+		t.Fatalf("expected score to remain 1 got %d", p3.Score)
+	}
 }

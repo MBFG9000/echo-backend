@@ -58,6 +58,21 @@ func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, err
 	return nil, err
 }
 
+func (p *Post) Search(ctx context.Context, query string, limit int) ([]domain.Post, error) {
+	posts := make([]domain.Post, 0, limit)
+	err := p.db.WithContext(ctx).
+		Where("is_hidden = false").
+		Where("content ILIKE ? OR pseudonym ILIKE ?", "%"+query+"%", "%"+query+"%").
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&posts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
 func (p *Post) SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error {
 	result := p.db.WithContext(ctx).Model(&domain.Post{}).
 		Where("id = ?", postID).
@@ -78,6 +93,16 @@ func (p *Post) CreateReply(ctx context.Context, reply *domain.Reply) error {
 	}
 	if reply.CreatedAt.IsZero() {
 		reply.CreatedAt = time.Now()
+	}
+
+	if reply.ParentReplyID != nil {
+		parent, err := p.getReplyByID(ctx, *reply.ParentReplyID)
+		if err != nil {
+			return err
+		}
+		if parent.PostID != reply.PostID {
+			return domain.ErrInvalidInput
+		}
 	}
 
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -108,6 +133,56 @@ func (p *Post) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]
 	return replies, nil
 }
 
+func (p *Post) UpdateReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
+	reply, err := p.getReplyByID(ctx, replyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if reply.AuthorID != authorID {
+		return nil, domain.ErrUnauthorized
+	}
+
+	if err := p.db.WithContext(ctx).
+		Model(&domain.Reply{}).
+		Where("id = ?", replyID).
+		Update("content", content).Error; err != nil {
+		return nil, err
+	}
+
+	reply.Content = content
+	return reply, nil
+}
+
+func (p *Post) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error {
+	reply, err := p.getReplyByID(ctx, replyID)
+	if err != nil {
+		return err
+	}
+
+	if reply.AuthorID != authorID {
+		return domain.ErrUnauthorized
+	}
+
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("id = ?", replyID).Delete(&domain.Reply{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return domain.ErrNotFound
+		}
+
+		if err := tx.Model(&domain.Post{}).
+			Where("id = ?", reply.PostID).
+			UpdateColumn("reply_count", gorm.Expr("GREATEST(reply_count - 1, 0)")).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing domain.Reaction
@@ -126,7 +201,9 @@ func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kin
 			if result.RowsAffected > 0 {
 				scoreDelta = reactionValue(kind)
 			}
-		} else if existing.Kind != kind {
+		} else if existing.Kind == kind {
+			return domain.ErrConflict
+		} else {
 			if err := tx.Model(&domain.Reaction{}).
 				Where("post_id = ? AND user_id = ?", postID, userID).
 				Update("kind", kind).Error; err != nil {
@@ -147,10 +224,72 @@ func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kin
 	})
 }
 
+func (p *Post) UpsertReplyReaction(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var reply domain.Reply
+		if err := tx.Where("id = ?", replyID).First(&reply).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+
+		var existing domain.ReplyReaction
+		err := tx.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		scoreDelta := 0
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			created := domain.ReplyReaction{ReplyID: replyID, UserID: userID, Kind: kind}
+			result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&created)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected > 0 {
+				scoreDelta = reactionValue(kind)
+			}
+		} else if existing.Kind == kind {
+			return domain.ErrConflict
+		} else {
+			if err := tx.Model(&domain.ReplyReaction{}).
+				Where("reply_id = ? AND user_id = ?", replyID, userID).
+				Update("kind", kind).Error; err != nil {
+				return err
+			}
+			scoreDelta = reactionValue(kind) - reactionValue(existing.Kind)
+		}
+
+		if scoreDelta != 0 {
+			if err := tx.Model(&domain.Reply{}).
+				Where("id = ?", replyID).
+				UpdateColumn("score", gorm.Expr("score + ?", scoreDelta)).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 func reactionValue(kind domain.ReactionKind) int {
 	if kind == domain.Upvote {
 		return 1
 	}
 
 	return -1
+}
+
+func (p *Post) getReplyByID(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error) {
+	var reply domain.Reply
+	err := p.db.WithContext(ctx).Where("id = ?", replyID).First(&reply).Error
+	if err == nil {
+		return &reply, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domain.ErrNotFound
+	}
+
+	return nil, err
 }

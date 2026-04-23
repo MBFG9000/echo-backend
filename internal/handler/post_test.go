@@ -17,6 +17,7 @@ type postSvcStub struct {
 	create  func(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error)
 	delete  func(ctx context.Context, postID, authorID uuid.UUID) error
 	getByID func(ctx context.Context, postID uuid.UUID) (*domain.Post, error)
+	search  func(ctx context.Context, query string, limit int) ([]domain.Post, error)
 }
 
 func (s *postSvcStub) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error) {
@@ -31,16 +32,35 @@ func (s *postSvcStub) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Po
 	return s.getByID(ctx, postID)
 }
 
+func (s *postSvcStub) Search(ctx context.Context, query string, limit int) ([]domain.Post, error) {
+	if s.search != nil {
+		return s.search(ctx, query, limit)
+	}
+	return nil, nil
+}
+
 func (s *postSvcStub) React(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
 	return nil
 }
 
-func (s *postSvcStub) CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
+func (s *postSvcStub) CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
 	return nil, nil
+}
+
+func (s *postSvcStub) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	return nil
 }
 
 func (s *postSvcStub) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error) {
 	return nil, nil
+}
+
+func (s *postSvcStub) UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
+	return nil, nil
+}
+
+func (s *postSvcStub) DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error {
+	return nil
 }
 
 func TestPostHandler_Create(t *testing.T) {
