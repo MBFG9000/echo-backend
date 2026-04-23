@@ -13,9 +13,12 @@ type postRepoStub struct {
 	create       func(ctx context.Context, post *domain.Post) error
 	deleteByAuth func(ctx context.Context, postID, authorID uuid.UUID) error
 	getByID      func(ctx context.Context, postID uuid.UUID) (*domain.Post, error)
+	search       func(ctx context.Context, query string, limit int) ([]domain.Post, error)
 	setHidden    func(ctx context.Context, postID uuid.UUID, hidden bool) error
 	createReply  func(ctx context.Context, reply *domain.Reply) error
 	listReplies  func(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error)
+	updateReply  func(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error)
+	deleteReply  func(ctx context.Context, replyID, authorID uuid.UUID) error
 	upsertReact  func(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error
 }
 
@@ -40,6 +43,13 @@ func (s *postRepoStub) GetByID(ctx context.Context, postID uuid.UUID) (*domain.P
 	return nil, domain.ErrNotFound
 }
 
+func (s *postRepoStub) Search(ctx context.Context, query string, limit int) ([]domain.Post, error) {
+	if s.search != nil {
+		return s.search(ctx, query, limit)
+	}
+	return nil, nil
+}
+
 func (s *postRepoStub) SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error {
 	if s.setHidden != nil {
 		return s.setHidden(ctx, postID, hidden)
@@ -59,6 +69,20 @@ func (s *postRepoStub) ListReplies(ctx context.Context, postID uuid.UUID, limit 
 		return s.listReplies(ctx, postID, limit)
 	}
 	return nil, nil
+}
+
+func (s *postRepoStub) UpdateReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
+	if s.updateReply != nil {
+		return s.updateReply(ctx, replyID, authorID, content)
+	}
+	return nil, nil
+}
+
+func (s *postRepoStub) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error {
+	if s.deleteReply != nil {
+		return s.deleteReply(ctx, replyID, authorID)
+	}
+	return nil
 }
 
 func (s *postRepoStub) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {

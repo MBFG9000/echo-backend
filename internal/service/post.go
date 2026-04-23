@@ -68,6 +68,22 @@ func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, err
 	return p.posts.GetByID(ctx, postID)
 }
 
+func (p *Post) Search(ctx context.Context, query string, limit int) ([]domain.Post, error) {
+	trimmed := strings.TrimSpace(query)
+	if trimmed == "" {
+		return nil, domain.ErrInvalidInput
+	}
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	return p.posts.Search(ctx, trimmed, limit)
+}
+
 func (p *Post) React(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
 	if kind != domain.Upvote && kind != domain.Downvote {
 		return domain.ErrInvalidInput
@@ -122,4 +138,17 @@ func (p *Post) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]
 	}
 
 	return p.posts.ListReplies(ctx, postID, limit)
+}
+
+func (p *Post) UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" || len(trimmed) > 280 {
+		return nil, domain.ErrInvalidInput
+	}
+
+	return p.posts.UpdateReplyByAuthor(ctx, replyID, authorID, trimmed)
+}
+
+func (p *Post) DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error {
+	return p.posts.DeleteReplyByAuthor(ctx, replyID, authorID)
 }

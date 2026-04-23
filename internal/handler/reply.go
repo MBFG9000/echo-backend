@@ -22,6 +22,15 @@ type listRepliesRequest struct {
 	Limit  int    `json:"limit"`
 }
 
+type updateReplyRequest struct {
+	ReplyID string `json:"replyId" binding:"required"`
+	Content string `json:"content" binding:"required,max=280"`
+}
+
+type deleteReplyRequest struct {
+	ReplyID string `json:"replyId" binding:"required"`
+}
+
 func NewReply(posts domain.PostService) *Reply {
 	return &Reply{posts: posts}
 }
@@ -32,6 +41,8 @@ func (r *Reply) RegisterPublic(rg *gin.RouterGroup) {
 
 func (r *Reply) RegisterPrivate(rg *gin.RouterGroup) {
 	rg.POST("/replies/create", r.create)
+	rg.POST("/replies/update", r.update)
+	rg.POST("/replies/delete", r.delete)
 }
 
 func (r *Reply) create(c *gin.Context) {
@@ -103,4 +114,69 @@ func (r *Reply) list(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"replies": replies})
+}
+
+func (r *Reply) update(c *gin.Context) {
+	var req updateReplyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	replyID, err := uuid.Parse(req.ReplyID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	userIDValue, ok := c.Get("userID")
+	if !ok {
+		writeDomainError(c, domain.ErrUnauthorized)
+		return
+	}
+	userID, ok := userIDValue.(uuid.UUID)
+	if !ok {
+		writeDomainError(c, domain.ErrUnauthorized)
+		return
+	}
+
+	reply, err := r.posts.UpdateReply(c.Request.Context(), replyID, userID, req.Content)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, reply)
+}
+
+func (r *Reply) delete(c *gin.Context) {
+	var req deleteReplyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	replyID, err := uuid.Parse(req.ReplyID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	userIDValue, ok := c.Get("userID")
+	if !ok {
+		writeDomainError(c, domain.ErrUnauthorized)
+		return
+	}
+	userID, ok := userIDValue.(uuid.UUID)
+	if !ok {
+		writeDomainError(c, domain.ErrUnauthorized)
+		return
+	}
+
+	if err := r.posts.DeleteReply(c.Request.Context(), replyID, userID); err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

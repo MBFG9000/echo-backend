@@ -24,12 +24,18 @@ type deletePostRequest struct {
 	ID string `json:"id" binding:"required"`
 }
 
+type searchPostsRequest struct {
+	Query string `json:"query" binding:"required"`
+	Limit int    `json:"limit"`
+}
+
 func NewPost(posts domain.PostService) *Post {
 	return &Post{posts: posts}
 }
 
 func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
 	rg.POST("/get", p.getByID)
+	rg.POST("/search", p.search)
 }
 
 func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.HandlerFunc) {
@@ -139,4 +145,20 @@ func (p *Post) getByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, post)
+}
+
+func (p *Post) search(c *gin.Context) {
+	var req searchPostsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	posts, err := p.posts.Search(c.Request.Context(), req.Query, req.Limit)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"posts": posts})
 }

@@ -69,7 +69,7 @@ func run() error {
 	reactionHandler := handler.NewReaction(postService)
 	reportHandler := handler.NewReport(reportService)
 	adminHandler := handler.NewAdmin(reportService)
-	wsHandler := handler.NewWS(feedHub)
+	wsHandler := handler.NewWS(feedHub, cfg.CORS.AllowedOrigins)
 	healthHandler := handler.NewHealth(db, redisClient)
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)

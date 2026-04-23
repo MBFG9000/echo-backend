@@ -49,9 +49,12 @@ type PostRepository interface {
 	Create(ctx context.Context, post *Post) error
 	DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) error
 	GetByID(ctx context.Context, postID uuid.UUID) (*Post, error)
+	Search(ctx context.Context, query string, limit int) ([]Post, error)
 	SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error
 	CreateReply(ctx context.Context, reply *Reply) error
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)
+	UpdateReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID, content string) (*Reply, error)
+	DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error
 	UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
 }
 
@@ -59,9 +62,12 @@ type PostService interface {
 	Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*Post, error)
 	Delete(ctx context.Context, postID, authorID uuid.UUID) error
 	GetByID(ctx context.Context, postID uuid.UUID) (*Post, error)
+	Search(ctx context.Context, query string, limit int) ([]Post, error)
 	React(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
 	CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseudonym, content string) (*Reply, error)
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)
+	UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, content string) (*Reply, error)
+	DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error
 }
 
 type FeedRepository interface {
