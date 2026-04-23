@@ -96,7 +96,7 @@ func (p *Post) React(ctx context.Context, postID, userID uuid.UUID, kind domain.
 	return p.posts.UpsertReaction(ctx, postID, userID, kind)
 }
 
-func (p *Post) CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
+func (p *Post) CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
 	trimmed := strings.TrimSpace(content)
 	if trimmed == "" || len(trimmed) > 280 {
 		return nil, domain.ErrInvalidInput
@@ -111,11 +111,12 @@ func (p *Post) CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseu
 	}
 
 	reply := &domain.Reply{
-		ID:        uuid.New(),
-		PostID:    postID,
-		AuthorID:  authorID,
-		Pseudonym: pseudonym,
-		Content:   trimmed,
+		ID:            uuid.New(),
+		PostID:        postID,
+		ParentReplyID: parentReplyID,
+		AuthorID:      authorID,
+		Pseudonym:     pseudonym,
+		Content:       trimmed,
 	}
 
 	if err := p.posts.CreateReply(ctx, reply); err != nil {
@@ -151,4 +152,12 @@ func (p *Post) UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, con
 
 func (p *Post) DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error {
 	return p.posts.DeleteReplyByAuthor(ctx, replyID, authorID)
+}
+
+func (p *Post) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	if kind != domain.Upvote && kind != domain.Downvote {
+		return domain.ErrInvalidInput
+	}
+
+	return p.posts.UpsertReplyReaction(ctx, replyID, userID, kind)
 }

@@ -43,8 +43,12 @@ func (s *postSvcStub) React(ctx context.Context, postID, userID uuid.UUID, kind 
 	return nil
 }
 
-func (s *postSvcStub) CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
+func (s *postSvcStub) CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
 	return nil, nil
+}
+
+func (s *postSvcStub) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	return nil
 }
 
 func (s *postSvcStub) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error) {

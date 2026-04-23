@@ -95,6 +95,16 @@ func (p *Post) CreateReply(ctx context.Context, reply *domain.Reply) error {
 		reply.CreatedAt = time.Now()
 	}
 
+	if reply.ParentReplyID != nil {
+		parent, err := p.getReplyByID(ctx, *reply.ParentReplyID)
+		if err != nil {
+			return err
+		}
+		if parent.PostID != reply.PostID {
+			return domain.ErrInvalidInput
+		}
+	}
+
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(reply).Error; err != nil {
 			return err
@@ -191,7 +201,9 @@ func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kin
 			if result.RowsAffected > 0 {
 				scoreDelta = reactionValue(kind)
 			}
-		} else if existing.Kind != kind {
+		} else if existing.Kind == kind {
+			return domain.ErrConflict
+		} else {
 			if err := tx.Model(&domain.Reaction{}).
 				Where("post_id = ? AND user_id = ?", postID, userID).
 				Update("kind", kind).Error; err != nil {
@@ -203,6 +215,55 @@ func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kin
 		if scoreDelta != 0 {
 			if err := tx.Model(&domain.Post{}).
 				Where("id = ?", postID).
+				UpdateColumn("score", gorm.Expr("score + ?", scoreDelta)).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (p *Post) UpsertReplyReaction(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var reply domain.Reply
+		if err := tx.Where("id = ?", replyID).First(&reply).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+
+		var existing domain.ReplyReaction
+		err := tx.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		scoreDelta := 0
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			created := domain.ReplyReaction{ReplyID: replyID, UserID: userID, Kind: kind}
+			result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&created)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected > 0 {
+				scoreDelta = reactionValue(kind)
+			}
+		} else if existing.Kind == kind {
+			return domain.ErrConflict
+		} else {
+			if err := tx.Model(&domain.ReplyReaction{}).
+				Where("reply_id = ? AND user_id = ?", replyID, userID).
+				Update("kind", kind).Error; err != nil {
+				return err
+			}
+			scoreDelta = reactionValue(kind) - reactionValue(existing.Kind)
+		}
+
+		if scoreDelta != 0 {
+			if err := tx.Model(&domain.Reply{}).
+				Where("id = ?", replyID).
 				UpdateColumn("score", gorm.Expr("score + ?", scoreDelta)).Error; err != nil {
 				return err
 			}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/echo-app/echo/internal/config"
+	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/handler"
 	"github.com/echo-app/echo/internal/hub"
 	"github.com/echo-app/echo/internal/middleware"
@@ -40,6 +41,12 @@ func run() error {
 	db, err := openDB(cfg.DB)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
+	}
+
+	if !cfg.IsProduction() {
+		if err := syncDevSchema(db); err != nil {
+			return fmt.Errorf("migrate dev schema: %w", err)
+		}
 	}
 
 	redisClient, err := openRedis(cfg.Redis)
@@ -183,4 +190,26 @@ func openRedis(cfg config.Redis) (*redis.Client, error) {
 	}
 
 	return client, nil
+}
+
+func syncDevSchema(db *gorm.DB) error {
+	if !db.Migrator().HasColumn(&domain.Reply{}, "parent_reply_id") {
+		if err := db.Migrator().AddColumn(&domain.Reply{}, "ParentReplyID"); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasColumn(&domain.Reply{}, "score") {
+		if err := db.Migrator().AddColumn(&domain.Reply{}, "Score"); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasTable(&domain.ReplyReaction{}) {
+		if err := db.Migrator().CreateTable(&domain.ReplyReaction{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
