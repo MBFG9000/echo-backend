@@ -23,6 +23,10 @@ type listReportsRequest struct {
 	Offset int `json:"offset"`
 }
 
+type listReportsResponse struct {
+	Reports []reportView `json:"reports"`
+}
+
 type reportView struct {
 	ID         uuid.UUID               `json:"id"`
 	PostID     uuid.UUID               `json:"postId"`
@@ -44,6 +48,18 @@ func (a *Admin) Register(rg *gin.RouterGroup) {
 	rg.POST("/reports/action", a.action)
 }
 
+// @Summary List open reports
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body listReportsRequest true "List payload"
+// @Success 200 {object} listReportsResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 403 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /admin/reports/list [post]
 func (a *Admin) listReports(c *gin.Context) {
 	var req listReportsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,9 +88,22 @@ func (a *Admin) listReports(c *gin.Context) {
 		items = append(items, toReportView(report))
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reports": items})
+	c.JSON(http.StatusOK, listReportsResponse{Reports: items})
 }
 
+// @Summary Resolve report
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body moderateRequest true "Action payload"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 403 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /admin/reports/action [post]
 func (a *Admin) action(c *gin.Context) {
 	adminIDValue, ok := c.Get("userID")
 	if !ok {
@@ -105,7 +134,7 @@ func (a *Admin) action(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	c.JSON(http.StatusOK, okResponse{OK: true})
 }
 
 func toReportView(report domain.Report) reportView {
