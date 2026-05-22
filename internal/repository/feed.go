@@ -18,6 +18,7 @@ func NewFeed(db *gorm.DB) *Feed {
 
 func (f *Feed) Latest(ctx context.Context, limit int, cursor *domain.FeedCursor) ([]domain.Post, *domain.FeedCursor, error) {
 	query := f.db.WithContext(ctx).
+		Preload("Attachment", attachmentMetadataScope).
 		Where("is_hidden = false").
 		Order("created_at DESC").
 		Order("id DESC").
@@ -43,6 +44,7 @@ func (f *Feed) Latest(ctx context.Context, limit int, cursor *domain.FeedCursor)
 func (f *Feed) Trending(ctx context.Context, limit int) ([]domain.Post, error) {
 	posts := make([]domain.Post, 0, limit)
 	err := f.db.WithContext(ctx).
+		Preload("Attachment", attachmentMetadataScope).
 		Where("is_hidden = false").
 		Order("score DESC").
 		Order("created_at DESC").

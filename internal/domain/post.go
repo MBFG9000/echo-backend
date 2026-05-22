@@ -15,14 +15,25 @@ const (
 )
 
 type Post struct {
-	ID         uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	AuthorID   uuid.UUID `json:"authorId" gorm:"type:uuid;index;not null"`
-	Pseudonym  string    `json:"pseudonym" gorm:"not null"`
-	Content    string    `json:"content" gorm:"type:text;not null"`
-	IsHidden   bool      `json:"-" gorm:"not null;default:false"`
-	ReplyCount int       `json:"replyCount" gorm:"not null;default:0"`
-	Score      int       `json:"score" gorm:"not null;default:0"`
-	CreatedAt  time.Time `json:"createdAt"`
+	ID         uuid.UUID       `json:"id" gorm:"type:uuid;primaryKey"`
+	AuthorID   uuid.UUID       `json:"authorId" gorm:"type:uuid;index;not null"`
+	Pseudonym  string          `json:"pseudonym" gorm:"not null"`
+	Content    string          `json:"content" gorm:"type:text;not null"`
+	Attachment *PostAttachment `json:"attachment,omitempty" gorm:"foreignKey:PostID"`
+	IsHidden   bool            `json:"-" gorm:"not null;default:false"`
+	ReplyCount int             `json:"replyCount" gorm:"not null;default:0"`
+	Score      int             `json:"score" gorm:"not null;default:0"`
+	CreatedAt  time.Time       `json:"createdAt"`
+}
+
+type PostAttachment struct {
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	PostID      uuid.UUID `json:"postId" gorm:"type:uuid;uniqueIndex;not null"`
+	FileName    string    `json:"fileName" gorm:"not null"`
+	ContentType string    `json:"contentType" gorm:"not null"`
+	Size        int64     `json:"size" gorm:"not null"`
+	Data        []byte    `json:"-" gorm:"type:bytea;not null"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type Reply struct {
@@ -49,6 +60,7 @@ type PostRepository interface {
 	Create(ctx context.Context, post *Post) error
 	DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) error
 	GetByID(ctx context.Context, postID uuid.UUID) (*Post, error)
+	GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*PostAttachment, error)
 	SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error
 	CreateReply(ctx context.Context, reply *Reply) error
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)
@@ -56,9 +68,10 @@ type PostRepository interface {
 }
 
 type PostService interface {
-	Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*Post, error)
+	Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *PostAttachment) (*Post, error)
 	Delete(ctx context.Context, postID, authorID uuid.UUID) error
 	GetByID(ctx context.Context, postID uuid.UUID) (*Post, error)
+	GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*PostAttachment, error)
 	React(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
 	CreateReply(ctx context.Context, postID, authorID uuid.UUID, pseudonym, content string) (*Reply, error)
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)

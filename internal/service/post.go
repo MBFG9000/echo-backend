@@ -22,7 +22,7 @@ func NewPost(posts domain.PostRepository, broadcaster PostBroadcaster) *Post {
 	return &Post{posts: posts, broadcaster: broadcaster}
 }
 
-func (p *Post) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error) {
+func (p *Post) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *domain.PostAttachment) (*domain.Post, error) {
 	trimmed := strings.TrimSpace(content)
 	if trimmed == "" || len(trimmed) > 280 {
 		return nil, domain.ErrInvalidInput
@@ -33,10 +33,11 @@ func (p *Post) Create(ctx context.Context, authorID uuid.UUID, pseudonym, conten
 	}
 
 	post := &domain.Post{
-		ID:        uuid.New(),
-		AuthorID:  authorID,
-		Pseudonym: pseudonym,
-		Content:   trimmed,
+		ID:         uuid.New(),
+		AuthorID:   authorID,
+		Pseudonym:  pseudonym,
+		Content:    trimmed,
+		Attachment: attachment,
 	}
 
 	if err := p.posts.Create(ctx, post); err != nil {
@@ -66,6 +67,10 @@ func (p *Post) Delete(ctx context.Context, postID, authorID uuid.UUID) error {
 
 func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, error) {
 	return p.posts.GetByID(ctx, postID)
+}
+
+func (p *Post) GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*domain.PostAttachment, error) {
+	return p.posts.GetAttachment(ctx, attachmentID)
 }
 
 func (p *Post) React(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
