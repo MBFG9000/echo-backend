@@ -16,6 +16,7 @@ type postRepoStub struct {
 	search           func(ctx context.Context, query string, limit int) ([]domain.Post, error)
 	setHidden        func(ctx context.Context, postID uuid.UUID, hidden bool) error
 	createReply      func(ctx context.Context, reply *domain.Reply) error
+	getReplyByID     func(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error)
 	listReplies      func(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error)
 	updateReply      func(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error)
 	deleteReply      func(ctx context.Context, replyID, authorID uuid.UUID) error
@@ -67,6 +68,13 @@ func (s *postRepoStub) CreateReply(ctx context.Context, reply *domain.Reply) err
 		return s.createReply(ctx, reply)
 	}
 	return nil
+}
+
+func (s *postRepoStub) GetReplyByID(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error) {
+	if s.getReplyByID != nil {
+		return s.getReplyByID(ctx, replyID)
+	}
+	return nil, domain.ErrNotFound
 }
 
 func (s *postRepoStub) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]domain.Reply, error) {
@@ -128,7 +136,7 @@ func TestPost_Create(t *testing.T) {
 		return nil
 	}
 
-	p := NewPost(stubRepo)
+	p := NewPost(stubRepo, nil)
 
 	actionables := []struct {
 		name      string
@@ -193,7 +201,7 @@ func TestPost_Delete(t *testing.T) {
 				return nil
 			}
 
-			p := NewPost(stubRepo)
+			p := NewPost(stubRepo, nil)
 			err := p.Delete(context.Background(), postID, tc.userID)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected %v got %v", tc.wantErr, err)
@@ -232,7 +240,7 @@ func TestPost_React(t *testing.T) {
 				return tc.repoErr
 			}
 
-			p := NewPost(stubRepo)
+			p := NewPost(stubRepo, nil)
 			err := p.React(context.Background(), postID, userID, tc.kind)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected %v got %v", tc.wantErr, err)
@@ -259,7 +267,7 @@ func TestPost_CreateReplyAndList(t *testing.T) {
 		return []domain.Reply{{ID: uuid.New(), PostID: postID, AuthorID: authorID, Content: "a"}}, nil
 	}
 
-	p := NewPost(stubRepo)
+	p := NewPost(stubRepo, nil)
 	_, err := p.CreateReply(context.Background(), postID, nil, authorID, "pseudonym", "reply")
 	if err != nil {
 		t.Fatal(err)

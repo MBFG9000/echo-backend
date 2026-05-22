@@ -76,6 +76,7 @@ type PostRepository interface {
 	GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*PostAttachment, error)
 	SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error
 	CreateReply(ctx context.Context, reply *Reply) error
+	GetReplyByID(ctx context.Context, replyID uuid.UUID) (*Reply, error)
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)
 	UpdateReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID, content string) (*Reply, error)
 	DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error
