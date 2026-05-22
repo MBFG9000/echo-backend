@@ -16,9 +16,9 @@ import (
 const idempotencyTTL = 24 * time.Hour
 
 type idempotencyRecord struct {
-	Status  int             `json:"status"`
+	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers,omitempty"`
-	Body    json.RawMessage `json:"body"`
+	Body    json.RawMessage   `json:"body"`
 }
 
 type responseCapture struct {
