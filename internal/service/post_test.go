@@ -266,3 +266,37 @@ func TestPost_CreateReplyAndList(t *testing.T) {
 		t.Fatalf("expected 1 reply got %d", len(replies))
 	}
 }
+
+func TestPost_ListRepliesBuildsTree(t *testing.T) {
+	postID := uuid.New()
+	rootID := uuid.New()
+	childID := uuid.New()
+	grandChildID := uuid.New()
+
+	stubRepo := &postRepoStub{}
+	stubRepo.getByID = func(ctx context.Context, id uuid.UUID) (*domain.Post, error) {
+		return &domain.Post{ID: postID}, nil
+	}
+	stubRepo.listReplies = func(ctx context.Context, id uuid.UUID, limit int) ([]domain.Reply, error) {
+		return []domain.Reply{
+			{ID: rootID, PostID: postID, AuthorID: uuid.New(), Content: "root"},
+			{ID: childID, PostID: postID, ParentReplyID: &rootID, AuthorID: uuid.New(), Content: "child"},
+			{ID: grandChildID, PostID: postID, ParentReplyID: &childID, AuthorID: uuid.New(), Content: "grand"},
+		}, nil
+	}
+
+	p := NewPost(stubRepo, nil)
+	replies, err := p.ListReplies(context.Background(), postID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replies) != 1 {
+		t.Fatalf("expected 1 root reply got %d", len(replies))
+	}
+	if len(replies[0].Children) != 1 {
+		t.Fatalf("expected 1 child reply got %d", len(replies[0].Children))
+	}
+	if len(replies[0].Children[0].Children) != 1 {
+		t.Fatalf("expected 1 grandchild reply got %d", len(replies[0].Children[0].Children))
+	}
+}

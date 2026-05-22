@@ -165,6 +165,22 @@ func (p *Post) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.U
 	}
 
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var deletedCount int64
+		if err := tx.Raw(`
+			WITH RECURSIVE subtree AS (
+				SELECT id FROM replies WHERE id = ?
+				UNION ALL
+				SELECT r.id FROM replies r
+				INNER JOIN subtree s ON r.parent_reply_id = s.id
+			)
+			SELECT COUNT(*) FROM subtree;
+		`, replyID).Scan(&deletedCount).Error; err != nil {
+			return err
+		}
+		if deletedCount == 0 {
+			return domain.ErrNotFound
+		}
+
 		result := tx.Where("id = ?", replyID).Delete(&domain.Reply{})
 		if result.Error != nil {
 			return result.Error
@@ -175,7 +191,7 @@ func (p *Post) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.U
 
 		if err := tx.Model(&domain.Post{}).
 			Where("id = ?", reply.PostID).
-			UpdateColumn("reply_count", gorm.Expr("GREATEST(reply_count - 1, 0)")).Error; err != nil {
+			UpdateColumn("reply_count", gorm.Expr("GREATEST(reply_count - ?, 0)", deletedCount)).Error; err != nil {
 			return err
 		}
 

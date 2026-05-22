@@ -34,6 +34,7 @@ type Reply struct {
 	Content       string     `json:"content" gorm:"type:text;not null"`
 	Score         int        `json:"score" gorm:"not null;default:0"`
 	CreatedAt     time.Time  `json:"createdAt"`
+	Children      []Reply    `json:"children,omitempty" gorm:"-"`
 }
 
 type ReplyReaction struct {

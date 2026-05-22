@@ -138,7 +138,44 @@ func (p *Post) ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]
 		return nil, err
 	}
 
-	return p.posts.ListReplies(ctx, postID, limit)
+	replies, err := p.posts.ListReplies(ctx, postID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildReplyTree(replies), nil
+}
+
+func buildReplyTree(replies []domain.Reply) []domain.Reply {
+	if len(replies) == 0 {
+		return replies
+	}
+
+	children := make(map[uuid.UUID][]*domain.Reply)
+	roots := make([]*domain.Reply, 0)
+	for i := range replies {
+		reply := &replies[i]
+		if reply.ParentReplyID != nil {
+			children[*reply.ParentReplyID] = append(children[*reply.ParentReplyID], reply)
+			continue
+		}
+		roots = append(roots, reply)
+	}
+
+	return buildReplyChildren(roots, children)
+}
+
+func buildReplyChildren(nodes []*domain.Reply, children map[uuid.UUID][]*domain.Reply) []domain.Reply {
+	result := make([]domain.Reply, 0, len(nodes))
+	for _, node := range nodes {
+		copy := *node
+		if kids, ok := children[node.ID]; ok {
+			copy.Children = buildReplyChildren(kids, children)
+		}
+		result = append(result, copy)
+	}
+
+	return result
 }
 
 func (p *Post) UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, content string) (*domain.Reply, error) {
