@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/echo-app/echo/internal/domain"
+	"github.com/echo-app/echo/internal/middleware"
 	"github.com/echo-app/echo/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 type Feed struct {
 	feeds domain.FeedService
+	posts domain.PostService
+	auth  *middleware.Auth
 }
 
 type latestFeedRequest struct {
@@ -33,8 +36,8 @@ type trendingFeedResponse struct {
 	Posts []domain.Post `json:"posts"`
 }
 
-func NewFeed(feeds domain.FeedService) *Feed {
-	return &Feed{feeds: feeds}
+func NewFeed(feeds domain.FeedService, posts domain.PostService, auth *middleware.Auth) *Feed {
+	return &Feed{feeds: feeds, posts: posts, auth: auth}
 }
 
 func (f *Feed) Register(rg *gin.RouterGroup) {
@@ -74,6 +77,12 @@ func (f *Feed) latest(c *gin.Context) {
 	if err != nil {
 		writeDomainError(c, err)
 		return
+	}
+
+	if f.auth != nil {
+		if userID, ok := f.auth.TryUserID(c); ok {
+			f.posts.MarkViewerReactionsOnPosts(c.Request.Context(), userID, posts)
+		}
 	}
 
 	nextValue := ""
@@ -117,6 +126,12 @@ func (f *Feed) trending(c *gin.Context) {
 	if err != nil {
 		writeDomainError(c, err)
 		return
+	}
+
+	if f.auth != nil {
+		if userID, ok := f.auth.TryUserID(c); ok {
+			f.posts.MarkViewerReactionsOnPosts(c.Request.Context(), userID, posts)
+		}
 	}
 
 	c.JSON(http.StatusOK, trendingFeedResponse{Posts: posts})

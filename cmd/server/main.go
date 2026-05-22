@@ -82,17 +82,17 @@ func run() error {
 	feedService := service.NewFeed(feedRepo, redisClient)
 	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
 
+	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
+
 	authHandler := handler.NewAuth(authService)
-	postHandler := handler.NewPost(postService, cfg.PublicAppURL)
-	feedHandler := handler.NewFeed(feedService)
-	replyHandler := handler.NewReply(postService)
+	postHandler := handler.NewPost(postService, cfg.PublicAppURL, authMiddleware)
+	feedHandler := handler.NewFeed(feedService, postService, authMiddleware)
+	replyHandler := handler.NewReply(postService, authMiddleware)
 	reactionHandler := handler.NewReaction(postService)
 	reportHandler := handler.NewReport(reportService)
 	adminHandler := handler.NewAdmin(reportService)
 	wsHandler := handler.NewWS(feedHub, cfg.CORS.AllowedOrigins)
 	healthHandler := handler.NewHealth(db, redisClient)
-
-	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
 	adminMiddleware := middleware.NewAdmin()
 	postCreateLimit := cfg.Server.RateLimitRequests / 6
 	if postCreateLimit < 1 {

@@ -6,12 +6,14 @@ import (
 	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
+	"github.com/echo-app/echo/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type Reply struct {
 	posts domain.PostService
+	auth  *middleware.Auth
 }
 
 type createReplyRequest struct {
@@ -48,8 +50,8 @@ type listRepliesResponse struct {
 	Replies []domain.Reply `json:"replies"`
 }
 
-func NewReply(posts domain.PostService) *Reply {
-	return &Reply{posts: posts}
+func NewReply(posts domain.PostService, auth *middleware.Auth) *Reply {
+	return &Reply{posts: posts, auth: auth}
 }
 
 func (r *Reply) RegisterPublic(rg *gin.RouterGroup) {
@@ -178,6 +180,12 @@ func (r *Reply) listFromParam(c *gin.Context) {
 		return
 	}
 
+	if r.auth != nil {
+		if userID, ok := r.auth.TryUserID(c); ok {
+			r.posts.MarkViewerReactionsOnReplies(c.Request.Context(), userID, replies)
+		}
+	}
+
 	c.JSON(http.StatusOK, listRepliesResponse{Replies: replies})
 }
 
@@ -213,6 +221,12 @@ func (r *Reply) list(c *gin.Context) {
 	if err != nil {
 		writeDomainError(c, err)
 		return
+	}
+
+	if r.auth != nil {
+		if userID, ok := r.auth.TryUserID(c); ok {
+			r.posts.MarkViewerReactionsOnReplies(c.Request.Context(), userID, replies)
+		}
 	}
 
 	c.JSON(http.StatusOK, listRepliesResponse{Replies: replies})

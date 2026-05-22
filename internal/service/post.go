@@ -166,3 +166,62 @@ func (p *Post) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind d
 func (p *Post) UnreactReply(ctx context.Context, replyID, userID uuid.UUID) error {
 	return p.posts.DeleteReplyReaction(ctx, replyID, userID)
 }
+
+func (p *Post) MarkViewerReactionsOnPosts(ctx context.Context, userID uuid.UUID, posts []domain.Post) {
+	if len(posts) == 0 {
+		return
+	}
+
+	ids := make([]uuid.UUID, len(posts))
+	for i := range posts {
+		ids[i] = posts[i].ID
+	}
+
+	liked, err := p.posts.LikedPostIDsAmong(ctx, userID, ids)
+	if err != nil {
+		return
+	}
+
+	for i := range posts {
+		posts[i].LikedByMe = liked[posts[i].ID]
+	}
+}
+
+func (p *Post) MarkViewerReactionsOnReplies(ctx context.Context, userID uuid.UUID, replies []domain.Reply) {
+	ids := collectReplyIDs(replies)
+	if len(ids) == 0 {
+		return
+	}
+
+	liked, err := p.posts.LikedReplyIDsAmong(ctx, userID, ids)
+	if err != nil {
+		return
+	}
+
+	markRepliesLiked(replies, liked)
+}
+
+func collectReplyIDs(replies []domain.Reply) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(replies))
+	var walk func([]domain.Reply)
+	walk = func(items []domain.Reply) {
+		for _, reply := range items {
+			ids = append(ids, reply.ID)
+			if len(reply.Children) > 0 {
+				walk(reply.Children)
+			}
+		}
+	}
+	walk(replies)
+
+	return ids
+}
+
+func markRepliesLiked(replies []domain.Reply, liked map[uuid.UUID]bool) {
+	for i := range replies {
+		replies[i].LikedByMe = liked[replies[i].ID]
+		if len(replies[i].Children) > 0 {
+			markRepliesLiked(replies[i].Children, liked)
+		}
+	}
+}

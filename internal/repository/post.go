@@ -398,6 +398,48 @@ func (p *Post) DeleteReplyReaction(ctx context.Context, replyID, userID uuid.UUI
 			UpdateColumn("score", gorm.Expr("score - ?", reactionValue(existing.Kind))).Error
 	})
 }
+func (p *Post) LikedPostIDsAmong(ctx context.Context, userID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	liked := make(map[uuid.UUID]bool, len(postIDs))
+	if len(postIDs) == 0 {
+		return liked, nil
+	}
+
+	var ids []uuid.UUID
+	if err := p.db.WithContext(ctx).
+		Model(&domain.Reaction{}).
+		Where("user_id = ? AND post_id IN ? AND kind = ?", userID, postIDs, domain.Upvote).
+		Pluck("post_id", &ids).Error; err != nil {
+		return nil, err
+	}
+
+	for _, id := range ids {
+		liked[id] = true
+	}
+
+	return liked, nil
+}
+
+func (p *Post) LikedReplyIDsAmong(ctx context.Context, userID uuid.UUID, replyIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	liked := make(map[uuid.UUID]bool, len(replyIDs))
+	if len(replyIDs) == 0 {
+		return liked, nil
+	}
+
+	var ids []uuid.UUID
+	if err := p.db.WithContext(ctx).
+		Model(&domain.ReplyReaction{}).
+		Where("user_id = ? AND reply_id IN ? AND kind = ?", userID, replyIDs, domain.Upvote).
+		Pluck("reply_id", &ids).Error; err != nil {
+		return nil, err
+	}
+
+	for _, id := range ids {
+		liked[id] = true
+	}
+
+	return liked, nil
+}
+
 func attachmentMetadataScope(db *gorm.DB) *gorm.DB {
 	return db.Select("id", "post_id", "file_name", "content_type", "size", "created_at")
 }

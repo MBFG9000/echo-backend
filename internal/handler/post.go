@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
+	"github.com/echo-app/echo/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ import (
 type Post struct {
 	posts        domain.PostService
 	publicAppURL string
+	auth         *middleware.Auth
 }
 
 type createPostRequest struct {
@@ -47,10 +49,11 @@ type searchPostsResponse struct {
 	Posts []domain.Post `json:"posts"`
 }
 
-func NewPost(posts domain.PostService, publicAppURL string) *Post {
+func NewPost(posts domain.PostService, publicAppURL string, auth *middleware.Auth) *Post {
 	return &Post{
 		posts:        posts,
 		publicAppURL: strings.TrimRight(strings.TrimSpace(publicAppURL), "/"),
+		auth:         auth,
 	}
 }
 
@@ -312,7 +315,14 @@ func (p *Post) respondPost(c *gin.Context, rawID string) {
 		return
 	}
 
-	c.JSON(http.StatusOK, post)
+	posts := []domain.Post{*post}
+	if p.auth != nil {
+		if userID, ok := p.auth.TryUserID(c); ok {
+			p.posts.MarkViewerReactionsOnPosts(c.Request.Context(), userID, posts)
+		}
+	}
+
+	c.JSON(http.StatusOK, posts[0])
 }
 
 func (p *Post) getAttachment(c *gin.Context) {
@@ -363,6 +373,12 @@ func (p *Post) search(c *gin.Context) {
 	if err != nil {
 		writeDomainError(c, err)
 		return
+	}
+
+	if p.auth != nil {
+		if userID, ok := p.auth.TryUserID(c); ok {
+			p.posts.MarkViewerReactionsOnPosts(c.Request.Context(), userID, posts)
+		}
 	}
 
 	c.JSON(http.StatusOK, searchPostsResponse{Posts: posts})

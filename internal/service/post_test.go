@@ -112,6 +112,14 @@ func (s *postRepoStub) DeleteReplyReaction(ctx context.Context, replyID, userID 
 	return nil
 }
 
+func (s *postRepoStub) LikedPostIDsAmong(ctx context.Context, userID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (s *postRepoStub) LikedReplyIDsAmong(ctx context.Context, userID uuid.UUID, replyIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
 func TestPost_Create(t *testing.T) {
 	created := false
 	stubRepo := &postRepoStub{}
