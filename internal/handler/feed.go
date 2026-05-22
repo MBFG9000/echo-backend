@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,7 +37,9 @@ func NewFeed(feeds domain.FeedService) *Feed {
 }
 
 func (f *Feed) Register(rg *gin.RouterGroup) {
+	rg.GET("/latest", f.latest)
 	rg.POST("/latest", f.latest)
+	rg.GET("/trending", f.trending)
 	rg.POST("/trending", f.trending)
 }
 
@@ -50,18 +53,17 @@ func (f *Feed) Register(rg *gin.RouterGroup) {
 // @Failure 500 {object} errorResponse
 // @Router /feed/latest [post]
 func (f *Feed) latest(c *gin.Context) {
-	var req latestFeedRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeValidationError(c, err)
+	limit, cursorRaw, err := f.latestInput(c)
+	if err != nil {
+		if c.Request.Method == http.MethodPost {
+			writeValidationError(c, err)
+		} else {
+			writeDomainError(c, domain.ErrInvalidInput)
+		}
 		return
 	}
 
-	limit := 20
-	if req.Limit > 0 {
-		limit = req.Limit
-	}
-
-	cursor, err := parseCursor(req.Cursor)
+	cursor, err := parseCursor(cursorRaw)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
@@ -91,15 +93,14 @@ func (f *Feed) latest(c *gin.Context) {
 // @Failure 500 {object} errorResponse
 // @Router /feed/trending [post]
 func (f *Feed) trending(c *gin.Context) {
-	var req trendingFeedRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeValidationError(c, err)
+	limit, err := f.trendingLimit(c)
+	if err != nil {
+		if c.Request.Method == http.MethodPost {
+			writeValidationError(c, err)
+		} else {
+			writeDomainError(c, domain.ErrInvalidInput)
+		}
 		return
-	}
-
-	limit := 20
-	if req.Limit > 0 {
-		limit = req.Limit
 	}
 
 	posts, err := f.feeds.Trending(c.Request.Context(), limit)
@@ -109,6 +110,60 @@ func (f *Feed) trending(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, trendingFeedResponse{Posts: posts})
+}
+
+func (f *Feed) latestInput(c *gin.Context) (int, string, error) {
+	if c.Request.Method == http.MethodGet {
+		limit := 20
+		if raw := c.Query("limit"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil {
+				return 0, "", err
+			}
+			limit = parsed
+		}
+
+		return limit, c.Query("cursor"), nil
+	}
+
+	var req latestFeedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return 0, "", err
+	}
+
+	limit := 20
+	if req.Limit > 0 {
+		limit = req.Limit
+	}
+
+	return limit, req.Cursor, nil
+}
+
+func (f *Feed) trendingLimit(c *gin.Context) (int, error) {
+	if c.Request.Method == http.MethodGet {
+		limit := 20
+		if raw := c.Query("limit"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil {
+				return 0, err
+			}
+			limit = parsed
+		}
+
+		return limit, nil
+	}
+
+	var req trendingFeedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return 0, err
+	}
+
+	limit := 20
+	if req.Limit > 0 {
+		limit = req.Limit
+	}
+
+	return limit, nil
 }
 
 func parseCursor(raw string) (*domain.FeedCursor, error) {

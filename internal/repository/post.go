@@ -330,6 +330,48 @@ func reactionValue(kind domain.ReactionKind) int {
 
 	return -1
 }
+
+func (p *Post) DeleteReaction(ctx context.Context, postID, userID uuid.UUID) error {
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing domain.Reaction
+		err := tx.Where("post_id = ? AND user_id = ?", postID, userID).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&existing).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&domain.Post{}).
+			Where("id = ?", postID).
+			UpdateColumn("score", gorm.Expr("score - ?", reactionValue(existing.Kind))).Error
+	})
+}
+
+func (p *Post) DeleteReplyReaction(ctx context.Context, replyID, userID uuid.UUID) error {
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing domain.ReplyReaction
+		err := tx.Where("reply_id = ? AND user_id = ?", replyID, userID).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&existing).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&domain.Reply{}).
+			Where("id = ?", replyID).
+			UpdateColumn("score", gorm.Expr("score - ?", reactionValue(existing.Kind))).Error
+	})
+}
 func attachmentMetadataScope(db *gorm.DB) *gorm.DB {
 	return db.Select("id", "post_id", "file_name", "content_type", "size", "created_at")
 }

@@ -79,6 +79,8 @@ type PostRepository interface {
 	DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.UUID) error
 	UpsertReplyReaction(ctx context.Context, replyID, userID uuid.UUID, kind ReactionKind) error
 	UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
+	DeleteReaction(ctx context.Context, postID, userID uuid.UUID) error
+	DeleteReplyReaction(ctx context.Context, replyID, userID uuid.UUID) error
 }
 
 type PostService interface {
@@ -88,11 +90,13 @@ type PostService interface {
 	Search(ctx context.Context, query string, limit int) ([]Post, error)
 	GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*PostAttachment, error)
 	React(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
+	Unreact(ctx context.Context, postID, userID uuid.UUID) error
 	CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*Reply, error)
 	ListReplies(ctx context.Context, postID uuid.UUID, limit int) ([]Reply, error)
 	UpdateReply(ctx context.Context, replyID, authorID uuid.UUID, content string) (*Reply, error)
 	DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error
 	ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind ReactionKind) error
+	UnreactReply(ctx context.Context, replyID, userID uuid.UUID) error
 }
 
 type FeedRepository interface {

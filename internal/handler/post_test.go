@@ -47,11 +47,19 @@ func (s *postSvcStub) React(ctx context.Context, postID, userID uuid.UUID, kind 
 	return nil
 }
 
+func (s *postSvcStub) Unreact(ctx context.Context, postID, userID uuid.UUID) error {
+	return nil
+}
+
 func (s *postSvcStub) CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
 	return nil, nil
 }
 
 func (s *postSvcStub) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind domain.ReactionKind) error {
+	return nil
+}
+
+func (s *postSvcStub) UnreactReply(ctx context.Context, replyID, userID uuid.UUID) error {
 	return nil
 }
 
@@ -87,7 +95,7 @@ func TestPostHandler_Create(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			r := gin.New()
-			p := NewPost(tc.service)
+			p := NewPost(tc.service, "")
 			p.RegisterPrivate(r.Group("/posts"), func(c *gin.Context) {
 				if tc.userID != uuid.Nil {
 					c.Set("userID", tc.userID)
@@ -126,7 +134,7 @@ func TestPostHandler_GetByID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			r := gin.New()
-			p := NewPost(tc.service)
+			p := NewPost(tc.service, "")
 			p.RegisterPublic(r.Group("/posts"))
 
 			body, _ := json.Marshal(map[string]string{"id": tc.id})
@@ -166,7 +174,7 @@ func TestPostHandler_Delete(t *testing.T) {
 				}
 				c.Next()
 			})
-			p := NewPost(tc.service)
+			p := NewPost(tc.service, "")
 			p.RegisterPrivate(r.Group("/posts"))
 
 			body, _ := json.Marshal(map[string]string{"id": postID.String()})

@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Env          string
 	OnionAddress string
+	PublicAppURL string
 	Server       Server
 	DB           DB
 	Redis        Redis
@@ -76,6 +77,7 @@ func Load() (Config, error) {
 	}
 
 	cfg.OnionAddress = strings.TrimSpace(os.Getenv("ONION_ADDRESS"))
+	cfg.PublicAppURL = strings.TrimRight(strings.TrimSpace(EnvOrDefault("APP_PUBLIC_URL", "http://localhost:5173")), "/")
 
 	//Server
 	cfg.Server.Host = RequireEnv(&errs, "SERVER_HOST", false)

@@ -15,7 +15,10 @@ func Security(cfg config.Config) gin.HandlerFunc {
 		if cfg.IsProduction() {
 			proto := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
 			if proto != "https" {
-				host := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
+				host := strings.TrimSpace(c.Request.Host)
+				if host == "" {
+					host = net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
+				}
 				target := url.URL{
 					Scheme:   "https",
 					Host:     host,

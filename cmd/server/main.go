@@ -79,7 +79,7 @@ func run() error {
 	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
 
 	authHandler := handler.NewAuth(authService)
-	postHandler := handler.NewPost(postService)
+	postHandler := handler.NewPost(postService, cfg.PublicAppURL)
 	feedHandler := handler.NewFeed(feedService)
 	replyHandler := handler.NewReply(postService)
 	reactionHandler := handler.NewReaction(postService)

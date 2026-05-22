@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
@@ -13,7 +15,8 @@ import (
 )
 
 type Post struct {
-	posts domain.PostService
+	posts        domain.PostService
+	publicAppURL string
 }
 
 type createPostRequest struct {
@@ -30,6 +33,11 @@ type deletePostRequest struct {
 	ID string `json:"id" binding:"required"`
 }
 
+type shareResponse struct {
+	URL    string `json:"url"`
+	PostID string `json:"postId"`
+}
+
 type searchPostsRequest struct {
 	Query string `json:"query" binding:"required"`
 	Limit int    `json:"limit"`
@@ -39,14 +47,19 @@ type searchPostsResponse struct {
 	Posts []domain.Post `json:"posts"`
 }
 
-func NewPost(posts domain.PostService) *Post {
-	return &Post{posts: posts}
+func NewPost(posts domain.PostService, publicAppURL string) *Post {
+	return &Post{
+		posts:        posts,
+		publicAppURL: strings.TrimRight(strings.TrimSpace(publicAppURL), "/"),
+	}
 }
 
 func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
 	rg.POST("/get", p.getByID)
 	rg.GET("/attachments/:id", p.getAttachment)
 	rg.POST("/search", p.search)
+	rg.GET("/:id/share", p.share)
+	rg.GET("/:id", p.getByIDFromParam)
 }
 
 func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.HandlerFunc) {
@@ -60,6 +73,7 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 	}
 
 	rg.POST("/delete", p.delete)
+	rg.DELETE("/:id", p.deleteFromParam)
 }
 
 // @Summary Create post
@@ -203,6 +217,14 @@ func (p *Post) delete(c *gin.Context) {
 		return
 	}
 
+	p.deletePost(c, req.ID)
+}
+
+func (p *Post) deleteFromParam(c *gin.Context) {
+	p.deletePost(c, c.Param("id"))
+}
+
+func (p *Post) deletePost(c *gin.Context, rawID string) {
 	userIDValue, ok := c.Get("userID")
 	if !ok {
 		writeDomainError(c, domain.ErrUnauthorized)
@@ -215,7 +237,7 @@ func (p *Post) delete(c *gin.Context) {
 		return
 	}
 
-	postID, err := uuid.Parse(req.ID)
+	postID, err := uuid.Parse(rawID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
@@ -228,6 +250,29 @@ func (p *Post) delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (p *Post) share(c *gin.Context) {
+	postID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	if _, err := p.posts.GetByID(c.Request.Context(), postID); err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	if p.publicAppURL == "" {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	c.JSON(http.StatusOK, shareResponse{
+		URL:    fmt.Sprintf("%s/post/%s", p.publicAppURL, postID.String()),
+		PostID: postID.String(),
+	})
 }
 
 // @Summary Get post by ID
@@ -247,7 +292,15 @@ func (p *Post) getByID(c *gin.Context) {
 		return
 	}
 
-	postID, err := uuid.Parse(req.ID)
+	p.respondPost(c, req.ID)
+}
+
+func (p *Post) getByIDFromParam(c *gin.Context) {
+	p.respondPost(c, c.Param("id"))
+}
+
+func (p *Post) respondPost(c *gin.Context, rawID string) {
+	postID, err := uuid.Parse(rawID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return
@@ -296,7 +349,17 @@ func (p *Post) search(c *gin.Context) {
 		return
 	}
 
-	posts, err := p.posts.Search(c.Request.Context(), req.Query, req.Limit)
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if raw := c.Query("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	posts, err := p.posts.Search(c.Request.Context(), req.Query, limit)
 	if err != nil {
 		writeDomainError(c, err)
 		return

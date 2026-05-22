@@ -1,0 +1,10 @@
+# Local overrides: expose DB/Redis to the host for `go run ./cmd/server`.
+# Docker Compose merges this file automatically; not used in production-only deploys.
+
+services:
+  postgres:
+    ports:
+      - "55432:5432"
+  redis:
+    ports:
+      - "6379:6379"
