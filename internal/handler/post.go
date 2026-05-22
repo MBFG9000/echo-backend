@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -16,6 +20,8 @@ type createPostRequest struct {
 	Content string `json:"content" binding:"required,max=280"`
 }
 
+const maxPostAttachmentSize = 10 * 1024 * 1024
+
 type getPostRequest struct {
 	ID string `json:"id" binding:"required"`
 }
@@ -24,12 +30,23 @@ type deletePostRequest struct {
 	ID string `json:"id" binding:"required"`
 }
 
+type searchPostsRequest struct {
+	Query string `json:"query" binding:"required"`
+	Limit int    `json:"limit"`
+}
+
+type searchPostsResponse struct {
+	Posts []domain.Post `json:"posts"`
+}
+
 func NewPost(posts domain.PostService) *Post {
 	return &Post{posts: posts}
 }
 
 func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
 	rg.POST("/get", p.getByID)
+	rg.GET("/attachments/:id", p.getAttachment)
+	rg.POST("/search", p.search)
 }
 
 func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.HandlerFunc) {
@@ -45,10 +62,20 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 	rg.POST("/delete", p.delete)
 }
 
+// @Summary Create post
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body createPostRequest true "Post payload"
+// @Success 201 {object} domain.Post
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts [post]
 func (p *Post) create(c *gin.Context) {
-	var req createPostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeValidationError(c, err)
+	content, attachment, ok := p.parseCreateRequest(c)
+	if !ok {
 		return
 	}
 
@@ -76,7 +103,7 @@ func (p *Post) create(c *gin.Context) {
 		return
 	}
 
-	post, err := p.posts.Create(c.Request.Context(), userID, pseudonym, req.Content)
+	post, err := p.posts.Create(c.Request.Context(), userID, pseudonym, content, attachment)
 	if err != nil {
 		writeDomainError(c, err)
 		return
@@ -85,6 +112,90 @@ func (p *Post) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, post)
 }
 
+func (p *Post) parseCreateRequest(c *gin.Context) (string, *domain.PostAttachment, bool) {
+	contentType := c.GetHeader("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxPostAttachmentSize+1024*1024)
+		if err := c.Request.ParseMultipartForm(maxPostAttachmentSize); err != nil {
+			writeDomainError(c, domain.ErrInvalidInput)
+			return "", nil, false
+		}
+
+		attachment, err := readPostAttachment(c)
+		if err != nil {
+			writeDomainError(c, domain.ErrInvalidInput)
+			return "", nil, false
+		}
+
+		return c.PostForm("content"), attachment, true
+	}
+
+	var req createPostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return "", nil, false
+	}
+
+	return req.Content, nil, true
+}
+
+func readPostAttachment(c *gin.Context) (*domain.PostAttachment, error) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		if err == http.ErrMissingFile {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if fileHeader.Size <= 0 || fileHeader.Size > maxPostAttachmentSize {
+		return nil, domain.ErrInvalidInput
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxPostAttachmentSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 || len(data) > maxPostAttachmentSize {
+		return nil, domain.ErrInvalidInput
+	}
+
+	fileName := strings.TrimSpace(filepath.Base(fileHeader.Filename))
+	if fileName == "" || fileName == "." {
+		fileName = "attachment"
+	}
+
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(data)
+	}
+
+	return &domain.PostAttachment{
+		ID:          uuid.New(),
+		FileName:    fileName,
+		ContentType: contentType,
+		Size:        int64(len(data)),
+		Data:        data,
+	}, nil
+}
+
+// @Summary Delete post
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body deletePostRequest true "Post ID"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/delete [post]
 func (p *Post) delete(c *gin.Context) {
 	var req deletePostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +230,16 @@ func (p *Post) delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// @Summary Get post by ID
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Param request body getPostRequest true "Post ID"
+// @Success 200 {object} domain.Post
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/get [post]
 func (p *Post) getByID(c *gin.Context) {
 	var req getPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -139,4 +260,47 @@ func (p *Post) getByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, post)
+}
+
+func (p *Post) getAttachment(c *gin.Context) {
+	attachmentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	attachment, err := p.posts.GetAttachment(c.Request.Context(), attachmentID)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	disposition := mime.FormatMediaType("inline", map[string]string{"filename": attachment.FileName})
+	c.Header("Content-Disposition", disposition)
+	c.Data(http.StatusOK, attachment.ContentType, attachment.Data)
+}
+
+// @Summary Search posts
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Param request body searchPostsRequest true "Search payload"
+// @Success 200 {object} searchPostsResponse
+// @Failure 400 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/search [post]
+func (p *Post) search(c *gin.Context) {
+	var req searchPostsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	posts, err := p.posts.Search(c.Request.Context(), req.Query, req.Limit)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, searchPostsResponse{Posts: posts})
 }

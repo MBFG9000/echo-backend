@@ -15,6 +15,12 @@ type Health struct {
 	redis *redis.Client
 }
 
+type healthResponse struct {
+	Status string `json:"status"`
+	DB     string `json:"db"`
+	Redis  string `json:"redis"`
+}
+
 func NewHealth(db *gorm.DB, redisClient *redis.Client) *Health {
 	return &Health{db: db, redis: redisClient}
 }
@@ -23,6 +29,12 @@ func (h *Health) Register(r *gin.Engine) {
 	r.GET("/health", h.check)
 }
 
+// @Summary Service health
+// @Tags health
+// @Produce json
+// @Success 200 {object} healthResponse
+// @Failure 503 {object} healthResponse
+// @Router /health [get]
 func (h *Health) check(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 	defer cancel()

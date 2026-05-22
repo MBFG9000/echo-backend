@@ -12,7 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/echo-app/echo/docs"
 	"github.com/echo-app/echo/internal/config"
+	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/handler"
 	"github.com/echo-app/echo/internal/hub"
 	"github.com/echo-app/echo/internal/middleware"
@@ -25,6 +27,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// @title Echo API
+// @version 1.0
+// @description Anonymous microblogging API for posts, replies, reactions, feeds, and moderation.
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer <token>
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -40,6 +50,12 @@ func run() error {
 	db, err := openDB(cfg.DB)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
+	}
+
+	if !cfg.IsProduction() {
+		if err := syncDevSchema(db); err != nil {
+			return fmt.Errorf("migrate dev schema: %w", err)
+		}
 	}
 
 	redisClient, err := openRedis(cfg.Redis)
@@ -69,7 +85,7 @@ func run() error {
 	reactionHandler := handler.NewReaction(postService)
 	reportHandler := handler.NewReport(reportService)
 	adminHandler := handler.NewAdmin(reportService)
-	wsHandler := handler.NewWS(feedHub)
+	wsHandler := handler.NewWS(feedHub, cfg.CORS.AllowedOrigins)
 	healthHandler := handler.NewHealth(db, redisClient)
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
@@ -98,6 +114,9 @@ func run() error {
 		loggerMiddleware.Handler(),
 		corsMiddleware.Handler(),
 	)
+	router.GET("/swagger/doc.json", func(c *gin.Context) {
+		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(docs.SwaggerInfo.ReadDoc()))
+	})
 	healthHandler.Register(router)
 
 	authRoutes := router.Group("/auth")
@@ -183,4 +202,32 @@ func openRedis(cfg config.Redis) (*redis.Client, error) {
 	}
 
 	return client, nil
+}
+
+func syncDevSchema(db *gorm.DB) error {
+	if !db.Migrator().HasColumn(&domain.Reply{}, "parent_reply_id") {
+		if err := db.Migrator().AddColumn(&domain.Reply{}, "ParentReplyID"); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasColumn(&domain.Reply{}, "score") {
+		if err := db.Migrator().AddColumn(&domain.Reply{}, "Score"); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasTable(&domain.ReplyReaction{}) {
+		if err := db.Migrator().CreateTable(&domain.ReplyReaction{}); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasTable(&domain.PostAttachment{}) {
+		if err := db.Migrator().CreateTable(&domain.PostAttachment{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

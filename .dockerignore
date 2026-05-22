@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+
+# Environment files
+.env
+.env.local
+
+# Documentation
+README.md
+*.md
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Docker files
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Scripts
+scripts/
