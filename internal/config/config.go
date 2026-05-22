@@ -104,14 +104,17 @@ func Load() (Config, error) {
 	cfg.JWT.Secret = RequireEnv(&errs, "JWT_SECRET", false)
 	cfg.JWT.TTL = RequireDuration(&errs, "JWT_TTL", false)
 
-	// Moderation
-	cfg.Moderation.AutoHideThreshold = RequireInt(&errs, "MODERATION_AUTO_HIDE_THRESHOLD", false)
+	// CORS
+	cfg.CORS.AllowedOrigins = splitAndTrim(EnvOrDefault("CORS_ALLOWED_ORIGINS", "*"))
 
-	corsAllowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
-	if strings.TrimSpace(corsAllowedOrigins) == "" {
-		corsAllowedOrigins = "*"
+	// Moderation
+	moderationThresholdRaw := EnvOrDefault("MODERATION_AUTO_HIDE_THRESHOLD", "3")
+	moderationThreshold, err := strconv.Atoi(moderationThresholdRaw)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("cant parse %s to int, Error: %w", moderationThresholdRaw, err))
+	} else {
+		cfg.Moderation.AutoHideThreshold = moderationThreshold
 	}
-	cfg.CORS.AllowedOrigins = splitAndTrim(corsAllowedOrigins)
 
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
