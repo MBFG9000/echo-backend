@@ -129,9 +129,8 @@ func TestPostHandler_GetByID(t *testing.T) {
 			p := NewPost(tc.service)
 			p.RegisterPublic(r.Group("/posts"))
 
-			req := httptest.NewRequest(http.MethodGet, "/posts/"+tc.id, nil)
 			body, _ := json.Marshal(map[string]string{"id": tc.id})
-			req = httptest.NewRequest(http.MethodPost, "/posts/get", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/posts/get", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
