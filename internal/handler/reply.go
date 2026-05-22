@@ -37,6 +37,10 @@ type reactReplyRequest struct {
 	Kind    domain.ReactionKind `json:"kind" binding:"required"`
 }
 
+type listRepliesResponse struct {
+	Replies []domain.Reply `json:"replies"`
+}
+
 func NewReply(posts domain.PostService) *Reply {
 	return &Reply{posts: posts}
 }
@@ -52,6 +56,18 @@ func (r *Reply) RegisterPrivate(rg *gin.RouterGroup) {
 	rg.POST("/replies/react", r.react)
 }
 
+// @Summary Create reply
+// @Tags replies
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body createReplyRequest true "Reply payload"
+// @Success 201 {object} domain.Reply
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/replies/create [post]
 func (r *Reply) create(c *gin.Context) {
 	var req createReplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -106,6 +122,16 @@ func (r *Reply) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, reply)
 }
 
+// @Summary List replies for post
+// @Tags replies
+// @Accept json
+// @Produce json
+// @Param request body listRepliesRequest true "List payload"
+// @Success 200 {object} listRepliesResponse
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/replies/list [post]
 func (r *Reply) list(c *gin.Context) {
 	var req listRepliesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -130,9 +156,21 @@ func (r *Reply) list(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"replies": replies})
+	c.JSON(http.StatusOK, listRepliesResponse{Replies: replies})
 }
 
+// @Summary Update reply
+// @Tags replies
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body updateReplyRequest true "Update payload"
+// @Success 200 {object} domain.Reply
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/replies/update [post]
 func (r *Reply) update(c *gin.Context) {
 	var req updateReplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -166,6 +204,18 @@ func (r *Reply) update(c *gin.Context) {
 	c.JSON(http.StatusOK, reply)
 }
 
+// @Summary Delete reply
+// @Tags replies
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body deleteReplyRequest true "Delete payload"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/replies/delete [post]
 func (r *Reply) delete(c *gin.Context) {
 	var req deleteReplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -198,6 +248,18 @@ func (r *Reply) delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// @Summary React to reply
+// @Tags replies
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body reactReplyRequest true "Reaction payload"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/replies/react [post]
 func (r *Reply) react(c *gin.Context) {
 	var req reactReplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

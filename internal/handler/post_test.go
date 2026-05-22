@@ -14,14 +14,18 @@ import (
 )
 
 type postSvcStub struct {
-	create  func(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error)
+	create  func(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *domain.PostAttachment) (*domain.Post, error)
 	delete  func(ctx context.Context, postID, authorID uuid.UUID) error
 	getByID func(ctx context.Context, postID uuid.UUID) (*domain.Post, error)
 	search  func(ctx context.Context, query string, limit int) ([]domain.Post, error)
 }
 
-func (s *postSvcStub) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error) {
-	return s.create(ctx, authorID, pseudonym, content)
+func (s *postSvcStub) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *domain.PostAttachment) (*domain.Post, error) {
+	return s.create(ctx, authorID, pseudonym, content, attachment)
+}
+
+func (s *postSvcStub) GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*domain.PostAttachment, error) {
+	return nil, nil
 }
 
 func (s *postSvcStub) Delete(ctx context.Context, postID, authorID uuid.UUID) error {
@@ -74,7 +78,7 @@ func TestPostHandler_Create(t *testing.T) {
 	}{
 		{name: "json invalid", payload: "{", userID: uuid.New(), pseudonym: "p", service: &postSvcStub{}, expectedStatus: http.StatusBadRequest},
 		{name: "unauthorized", payload: map[string]string{"content": "hello"}, userID: uuid.Nil, pseudonym: "", service: &postSvcStub{}, expectedStatus: http.StatusUnauthorized},
-		{name: "success", payload: map[string]string{"content": "hello"}, userID: uuid.New(), pseudonym: "echo", service: &postSvcStub{create: func(ctx context.Context, authorID uuid.UUID, pseudonym, content string) (*domain.Post, error) {
+		{name: "success", payload: map[string]string{"content": "hello"}, userID: uuid.New(), pseudonym: "echo", service: &postSvcStub{create: func(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *domain.PostAttachment) (*domain.Post, error) {
 			return &domain.Post{ID: uuid.New()}, nil
 		}}, expectedStatus: http.StatusCreated},
 	}

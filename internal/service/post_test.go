@@ -51,6 +51,10 @@ func (s *postRepoStub) Search(ctx context.Context, query string, limit int) ([]d
 	return nil, nil
 }
 
+func (s *postRepoStub) GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*domain.PostAttachment, error) {
+	return nil, nil
+}
+
 func (s *postRepoStub) SetHidden(ctx context.Context, postID uuid.UUID, hidden bool) error {
 	if s.setHidden != nil {
 		return s.setHidden(ctx, postID, hidden)
@@ -134,7 +138,7 @@ func TestPost_Create(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			created = false
 			broadcaster.payload = nil
-			post, err := p.Create(context.Background(), uuid.New(), tc.pseudonym, tc.content)
+			post, err := p.Create(context.Background(), uuid.New(), tc.pseudonym, tc.content, nil)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected err %v got %v", tc.wantErr, err)
 			}

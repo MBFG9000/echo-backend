@@ -25,6 +25,18 @@ func (r *Reaction) Register(rg *gin.RouterGroup) {
 	rg.POST("/react", r.react)
 }
 
+// @Summary React to post
+// @Tags reactions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body reactRequest true "Reaction payload"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/react [post]
 func (r *Reaction) react(c *gin.Context) {
 	var req reactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

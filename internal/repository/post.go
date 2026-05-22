@@ -26,8 +26,26 @@ func (p *Post) Create(ctx context.Context, post *domain.Post) error {
 	if post.CreatedAt.IsZero() {
 		post.CreatedAt = time.Now()
 	}
+	if post.Attachment != nil {
+		if post.Attachment.ID == uuid.Nil {
+			post.Attachment.ID = uuid.New()
+		}
+		post.Attachment.PostID = post.ID
+		if post.Attachment.CreatedAt.IsZero() {
+			post.Attachment.CreatedAt = time.Now()
+		}
+	}
 
-	return p.db.WithContext(ctx).Create(post).Error
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Omit("Attachment").Create(post).Error; err != nil {
+			return err
+		}
+		if post.Attachment != nil {
+			return tx.Create(post.Attachment).Error
+		}
+
+		return nil
+	})
 }
 
 func (p *Post) DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) error {
@@ -47,9 +65,28 @@ func (p *Post) DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) e
 
 func (p *Post) GetByID(ctx context.Context, postID uuid.UUID) (*domain.Post, error) {
 	var post domain.Post
-	err := p.db.WithContext(ctx).Where("id = ? AND is_hidden = false", postID).First(&post).Error
+	err := p.db.WithContext(ctx).
+		Preload("Attachment", attachmentMetadataScope).
+		Where("id = ? AND is_hidden = false", postID).
+		First(&post).Error
 	if err == nil {
 		return &post, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domain.ErrNotFound
+	}
+
+	return nil, err
+}
+
+func (p *Post) GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*domain.PostAttachment, error) {
+	var attachment domain.PostAttachment
+	err := p.db.WithContext(ctx).
+		Joins("JOIN posts ON posts.id = post_attachments.post_id").
+		Where("post_attachments.id = ? AND posts.is_hidden = false", attachmentID).
+		First(&attachment).Error
+	if err == nil {
+		return &attachment, nil
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, domain.ErrNotFound
@@ -94,7 +131,6 @@ func (p *Post) CreateReply(ctx context.Context, reply *domain.Reply) error {
 	if reply.CreatedAt.IsZero() {
 		reply.CreatedAt = time.Now()
 	}
-
 	if reply.ParentReplyID != nil {
 		parent, err := p.getReplyByID(ctx, *reply.ParentReplyID)
 		if err != nil {
@@ -104,7 +140,6 @@ func (p *Post) CreateReply(ctx context.Context, reply *domain.Reply) error {
 			return domain.ErrInvalidInput
 		}
 	}
-
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(reply).Error; err != nil {
 			return err
@@ -165,6 +200,22 @@ func (p *Post) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.U
 	}
 
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var deletedCount int64
+		if err := tx.Raw(`
+			WITH RECURSIVE subtree AS (
+				SELECT id FROM replies WHERE id = ?
+				UNION ALL
+				SELECT r.id FROM replies r
+				INNER JOIN subtree s ON r.parent_reply_id = s.id
+			)
+			SELECT COUNT(*) FROM subtree;
+		`, replyID).Scan(&deletedCount).Error; err != nil {
+			return err
+		}
+		if deletedCount == 0 {
+			return domain.ErrNotFound
+		}
+
 		result := tx.Where("id = ?", replyID).Delete(&domain.Reply{})
 		if result.Error != nil {
 			return result.Error
@@ -175,14 +226,13 @@ func (p *Post) DeleteReplyByAuthor(ctx context.Context, replyID, authorID uuid.U
 
 		if err := tx.Model(&domain.Post{}).
 			Where("id = ?", reply.PostID).
-			UpdateColumn("reply_count", gorm.Expr("GREATEST(reply_count - 1, 0)")).Error; err != nil {
+			UpdateColumn("reply_count", gorm.Expr("GREATEST(reply_count - ?, 0)", deletedCount)).Error; err != nil {
 			return err
 		}
 
 		return nil
 	})
 }
-
 func (p *Post) UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind domain.ReactionKind) error {
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing domain.Reaction
@@ -279,6 +329,9 @@ func reactionValue(kind domain.ReactionKind) int {
 	}
 
 	return -1
+}
+func attachmentMetadataScope(db *gorm.DB) *gorm.DB {
+	return db.Select("id", "post_id", "file_name", "content_type", "size", "created_at")
 }
 
 func (p *Post) getReplyByID(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error) {

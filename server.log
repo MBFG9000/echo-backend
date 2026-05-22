@@ -1,0 +1,144 @@
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> github.com/echo-app/echo/internal/handler.(*Health).check-fm (8 handlers)
+[GIN-debug] POST   /auth/register            --> github.com/echo-app/echo/internal/handler.(*Auth).register-fm (8 handlers)
+[GIN-debug] POST   /auth/refresh             --> github.com/echo-app/echo/internal/handler.(*Auth).refresh-fm (8 handlers)
+[GIN-debug] POST   /posts/get                --> github.com/echo-app/echo/internal/handler.(*Post).getByID-fm (8 handlers)
+[GIN-debug] GET    /posts/attachments/:id    --> github.com/echo-app/echo/internal/handler.(*Post).getAttachment-fm (8 handlers)
+[GIN-debug] POST   /posts/replies/list       --> github.com/echo-app/echo/internal/handler.(*Reply).list-fm (8 handlers)
+[GIN-debug] POST   /posts                    --> github.com/echo-app/echo/internal/handler.(*Post).create-fm (10 handlers)
+[GIN-debug] POST   /posts/delete             --> github.com/echo-app/echo/internal/handler.(*Post).delete-fm (9 handlers)
+[GIN-debug] POST   /posts/replies/create     --> github.com/echo-app/echo/internal/handler.(*Reply).create-fm (9 handlers)
+[GIN-debug] POST   /posts/react              --> github.com/echo-app/echo/internal/handler.(*Reaction).react-fm (9 handlers)
+[GIN-debug] POST   /posts/report             --> github.com/echo-app/echo/internal/handler.(*Report).create-fm (9 handlers)
+[GIN-debug] POST   /feed/latest              --> github.com/echo-app/echo/internal/handler.(*Feed).latest-fm (8 handlers)
+[GIN-debug] POST   /feed/trending            --> github.com/echo-app/echo/internal/handler.(*Feed).trending-fm (8 handlers)
+[GIN-debug] GET    /ws/feed                  --> github.com/echo-app/echo/internal/handler.(*WS).feed-fm (8 handlers)
+[GIN-debug] POST   /admin/reports/list       --> github.com/echo-app/echo/internal/handler.(*Admin).listReports-fm (10 handlers)
+[GIN-debug] POST   /admin/reports/action     --> github.com/echo-app/echo/internal/handler.(*Admin).action-fm (10 handlers)
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400
+[GIN-debug] [WARNING] Headers were already written. Wanted to override status code 403 with 400

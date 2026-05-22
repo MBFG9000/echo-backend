@@ -10,7 +10,7 @@ Echo backend is an anonymous microblogging API for posts, replies, reactions, re
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/echo-backend
+git clone https://github.com/MBFG9000/echo-backend
 cd echo-backend
 cp .env.example .env
 docker compose up -d
@@ -18,6 +18,14 @@ go run ./cmd/server
 ```
 
 API base URL: http://localhost:8080
+Swagger UI: http://localhost:8081
+
+## Swagger docs
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@v1.16.3
+swag init -g cmd/server/main.go -o docs
+```
 
 ## Architecture (ASCII)
 
