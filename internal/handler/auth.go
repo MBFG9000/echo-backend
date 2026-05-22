@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -19,6 +18,10 @@ type registerResponse struct {
 
 type refreshResponse struct {
 	Token string `json:"token"`
+}
+
+type refreshRequest struct {
+	Token string `json:"token" binding:"required"`
 }
 
 func NewAuth(auth domain.AuthService) *Auth {
@@ -41,14 +44,13 @@ func (a *Auth) register(c *gin.Context) {
 }
 
 func (a *Auth) refresh(c *gin.Context) {
-	authorization := c.GetHeader("Authorization")
-	parts := strings.SplitN(authorization, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-		writeDomainError(c, domain.ErrUnauthorized)
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
 		return
 	}
 
-	token, err := a.auth.Refresh(c.Request.Context(), parts[1])
+	token, err := a.auth.Refresh(c.Request.Context(), req.Token)
 	if err != nil {
 		writeDomainError(c, err)
 		return

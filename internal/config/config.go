@@ -12,15 +12,15 @@ import (
 )
 
 type Config struct {
-	Env           string
-	OnionAddress  string
-	PublicAppURL  string
-	Server        Server
-	DB            DB
-	Redis         Redis
-	JWT           JWT
-	CORS          CORS
-	Moderation    Moderation
+	Env          string
+	OnionAddress string
+	PublicAppURL string
+	Server       Server
+	DB           DB
+	Redis        Redis
+	JWT          JWT
+	CORS         CORS
+	Moderation   Moderation
 }
 
 type Server struct {
@@ -111,7 +111,7 @@ func Load() (Config, error) {
 	moderationThresholdRaw := EnvOrDefault("MODERATION_AUTO_HIDE_THRESHOLD", "3")
 	moderationThreshold, err := strconv.Atoi(moderationThresholdRaw)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("cant parse %s to int, Error: %w", moderationThresholdRaw, err))
+		errs = append(errs, fmt.Errorf("cannot parse %s to int: %w", moderationThresholdRaw, err))
 	} else {
 		cfg.Moderation.AutoHideThreshold = moderationThreshold
 	}
@@ -132,25 +132,23 @@ func (d DB) DSN() string {
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode)
 }
 
-// Try to get enviroment variable by specified key, if error occur write
-// errors to errs array, allowEmpty defines is empty string causes error or not
+// RequireEnv gets an environment variable and appends validation errors.
 func RequireEnv(errs *[]error, key string, allowEmpty bool) string {
 	value, ok := os.LookupEnv(key)
 
 	if !ok {
-		*errs = append(*errs, fmt.Errorf("Env variable %s does not exist", key))
+		*errs = append(*errs, fmt.Errorf("env variable %s does not exist", key))
 		return ""
 	}
 	if value == "" && !allowEmpty {
-		*errs = append(*errs, fmt.Errorf("Env variable %s is empty", key))
+		*errs = append(*errs, fmt.Errorf("env variable %s is empty", key))
 		return ""
 	}
 
 	return value
 }
 
-// return specified default value if enviroment variable
-// with specified key does not exist or empty
+// EnvOrDefault returns a default value when an environment variable is missing or empty.
 func EnvOrDefault(key string, defaultValue string) string {
 	value, ok := os.LookupEnv(key)
 
@@ -161,7 +159,7 @@ func EnvOrDefault(key string, defaultValue string) string {
 	return defaultValue
 }
 
-// Work as RequireEnv methods with additional check for integer
+// RequireInt is RequireEnv with integer parsing.
 func RequireInt(errs *[]error, key string, allowEmpty bool) int {
 	valueString := RequireEnv(errs, key, allowEmpty)
 	if valueString == "" {
@@ -171,14 +169,14 @@ func RequireInt(errs *[]error, key string, allowEmpty bool) int {
 	parsed, err := strconv.Atoi(valueString)
 
 	if err != nil {
-		*errs = append(*errs, fmt.Errorf("cant parse %s to int, Error: %w", valueString, err))
+		*errs = append(*errs, fmt.Errorf("cannot parse %s to int: %w", valueString, err))
 		return 0
 	}
 
 	return parsed
 }
 
-// Work as RequireEnv methods with additional check for 64 bit integer
+// RequireInt64 is RequireEnv with 64-bit integer parsing.
 func RequireInt64(errs *[]error, key string, allowEmpty bool) int64 {
 	valueString := RequireEnv(errs, key, allowEmpty)
 	if valueString == "" {
@@ -188,15 +186,14 @@ func RequireInt64(errs *[]error, key string, allowEmpty bool) int64 {
 	parsed, err := strconv.ParseInt(valueString, 10, 64)
 
 	if err != nil {
-		*errs = append(*errs, fmt.Errorf("cant parse %s to int64, Error: %w", valueString, err))
+		*errs = append(*errs, fmt.Errorf("cannot parse %s to int64: %w", valueString, err))
 		return 0
 	}
 
 	return parsed
 }
 
-// Work as RequireEnv methods with additional check for Time.Duration which
-// is under the hood actually 64 bit integer
+// RequireDuration is RequireEnv with time.Duration parsing.
 func RequireDuration(errs *[]error, key string, allowEmpty bool) time.Duration {
 	valueString := RequireEnv(errs, key, allowEmpty)
 
@@ -207,7 +204,7 @@ func RequireDuration(errs *[]error, key string, allowEmpty bool) time.Duration {
 	parsed, err := time.ParseDuration(valueString)
 
 	if err != nil {
-		*errs = append(*errs, fmt.Errorf("cant parse %s to Time.Duration, Error: %w", valueString, err))
+		*errs = append(*errs, fmt.Errorf("cannot parse %s to time.Duration: %w", valueString, err))
 		return 0
 	}
 	return parsed

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,9 +15,13 @@ func Security(cfg config.Config) gin.HandlerFunc {
 		if cfg.IsProduction() {
 			proto := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
 			if proto != "https" {
+				host := strings.TrimSpace(c.Request.Host)
+				if host == "" {
+					host = net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
+				}
 				target := url.URL{
 					Scheme:   "https",
-					Host:     c.Request.Host,
+					Host:     host,
 					Path:     c.Request.URL.Path,
 					RawQuery: c.Request.URL.RawQuery,
 				}

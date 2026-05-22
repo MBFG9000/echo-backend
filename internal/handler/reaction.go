@@ -13,7 +13,8 @@ type Reaction struct {
 }
 
 type reactRequest struct {
-	Kind domain.ReactionKind `json:"kind" binding:"required"`
+	PostID string              `json:"postId" binding:"required"`
+	Kind   domain.ReactionKind `json:"kind" binding:"required"`
 }
 
 func NewReaction(posts domain.PostService) *Reaction {
@@ -21,7 +22,7 @@ func NewReaction(posts domain.PostService) *Reaction {
 }
 
 func (r *Reaction) Register(rg *gin.RouterGroup) {
-	rg.POST("/:id/react", r.react)
+	rg.POST("/react", r.react)
 }
 
 func (r *Reaction) react(c *gin.Context) {
@@ -31,7 +32,7 @@ func (r *Reaction) react(c *gin.Context) {
 		return
 	}
 
-	postID, err := uuid.Parse(c.Param("id"))
+	postID, err := uuid.Parse(req.PostID)
 	if err != nil {
 		writeDomainError(c, domain.ErrInvalidInput)
 		return

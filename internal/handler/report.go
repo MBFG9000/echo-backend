@@ -13,6 +13,7 @@ type Report struct {
 }
 
 type createReportRequest struct {
+	PostID string `json:"postId" binding:"required"`
 	Reason string `json:"reason" binding:"required,max=500"`
 }
 
@@ -21,19 +22,19 @@ func NewReport(reports domain.ReportService) *Report {
 }
 
 func (r *Report) RegisterPrivate(rg *gin.RouterGroup) {
-	rg.POST("/:id/report", r.create)
+	rg.POST("/report", r.create)
 }
 
 func (r *Report) create(c *gin.Context) {
-	postID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		writeDomainError(c, domain.ErrInvalidInput)
-		return
-	}
-
 	var req createReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeValidationError(c, err)
+		return
+	}
+
+	postID, err := uuid.Parse(req.PostID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
@@ -55,5 +56,5 @@ func (r *Report) create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"ok": true, "auto_hidden": autoHidden})
+	c.JSON(http.StatusCreated, gin.H{"ok": true, "autoHidden": autoHidden})
 }
