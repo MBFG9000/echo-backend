@@ -1,0 +1,955 @@
+basePath: /
+definitions:
+  domain.ModerationAction:
+    enum:
+    - dismiss
+    - hide
+    - ban
+    type: string
+    x-enum-varnames:
+    - ModerationDismiss
+    - ModerationHide
+    - ModerationBan
+  domain.Post:
+    properties:
+      attachment:
+        $ref: '#/definitions/domain.PostAttachment'
+      authorId:
+        type: string
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      pseudonym:
+        type: string
+      replyCount:
+        type: integer
+      score:
+        type: integer
+    type: object
+  domain.PostAttachment:
+    properties:
+      contentType:
+        type: string
+      createdAt:
+        type: string
+      fileName:
+        type: string
+      id:
+        type: string
+      postId:
+        type: string
+      size:
+        type: integer
+    type: object
+  domain.ReactionKind:
+    enum:
+    - upvote
+    - downvote
+    type: string
+    x-enum-varnames:
+    - Upvote
+    - Downvote
+  domain.Reply:
+    properties:
+      authorId:
+        type: string
+      children:
+        items:
+          $ref: '#/definitions/domain.Reply'
+        type: array
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      parentReplyId:
+        type: string
+      postId:
+        type: string
+      pseudonym:
+        type: string
+      score:
+        type: integer
+    type: object
+  domain.ReportStatus:
+    enum:
+    - open
+    - resolved
+    type: string
+    x-enum-varnames:
+    - ReportStatusOpen
+    - ReportStatusResolved
+  handler.createPostRequest:
+    properties:
+      content:
+        maxLength: 280
+        type: string
+    required:
+    - content
+    type: object
+  handler.createReplyRequest:
+    properties:
+      content:
+        maxLength: 280
+        type: string
+      parentReplyId:
+        type: string
+      postId:
+        type: string
+    required:
+    - content
+    - postId
+    type: object
+  handler.createReportRequest:
+    properties:
+      postId:
+        type: string
+      reason:
+        maxLength: 500
+        type: string
+    required:
+    - postId
+    - reason
+    type: object
+  handler.createReportResponse:
+    properties:
+      autoHidden:
+        type: boolean
+      ok:
+        type: boolean
+    type: object
+  handler.deletePostRequest:
+    properties:
+      id:
+        type: string
+    required:
+    - id
+    type: object
+  handler.deleteReplyRequest:
+    properties:
+      replyId:
+        type: string
+    required:
+    - replyId
+    type: object
+  handler.errorResponse:
+    properties:
+      code:
+        type: string
+      error:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  handler.getPostRequest:
+    properties:
+      id:
+        type: string
+    required:
+    - id
+    type: object
+  handler.healthResponse:
+    properties:
+      db:
+        type: string
+      redis:
+        type: string
+      status:
+        type: string
+    type: object
+  handler.latestFeedRequest:
+    properties:
+      cursor:
+        type: string
+      limit:
+        type: integer
+    type: object
+  handler.latestFeedResponse:
+    properties:
+      next_cursor:
+        type: string
+      posts:
+        items:
+          $ref: '#/definitions/domain.Post'
+        type: array
+    type: object
+  handler.listRepliesRequest:
+    properties:
+      limit:
+        type: integer
+      postId:
+        type: string
+    required:
+    - postId
+    type: object
+  handler.listRepliesResponse:
+    properties:
+      replies:
+        items:
+          $ref: '#/definitions/domain.Reply'
+        type: array
+    type: object
+  handler.listReportsRequest:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  handler.listReportsResponse:
+    properties:
+      reports:
+        items:
+          $ref: '#/definitions/handler.reportView'
+        type: array
+    type: object
+  handler.moderateRequest:
+    properties:
+      action:
+        $ref: '#/definitions/domain.ModerationAction'
+      note:
+        type: string
+      reportId:
+        type: string
+    required:
+    - action
+    - reportId
+    type: object
+  handler.okResponse:
+    properties:
+      ok:
+        type: boolean
+    type: object
+  handler.reactReplyRequest:
+    properties:
+      kind:
+        $ref: '#/definitions/domain.ReactionKind'
+      replyId:
+        type: string
+    required:
+    - kind
+    - replyId
+    type: object
+  handler.reactRequest:
+    properties:
+      kind:
+        $ref: '#/definitions/domain.ReactionKind'
+      postId:
+        type: string
+    required:
+    - kind
+    - postId
+    type: object
+  handler.refreshRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  handler.refreshResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  handler.registerResponse:
+    properties:
+      pseudonym:
+        type: string
+      token:
+        type: string
+    type: object
+  handler.reportView:
+    properties:
+      action:
+        $ref: '#/definitions/domain.ModerationAction'
+      actionNote:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      postId:
+        type: string
+      reason:
+        type: string
+      reviewedAt:
+        type: string
+      reviewedBy:
+        type: string
+      status:
+        $ref: '#/definitions/domain.ReportStatus'
+    type: object
+  handler.searchPostsRequest:
+    properties:
+      limit:
+        type: integer
+      query:
+        type: string
+    required:
+    - query
+    type: object
+  handler.searchPostsResponse:
+    properties:
+      posts:
+        items:
+          $ref: '#/definitions/domain.Post'
+        type: array
+    type: object
+  handler.trendingFeedRequest:
+    properties:
+      limit:
+        type: integer
+    type: object
+  handler.trendingFeedResponse:
+    properties:
+      posts:
+        items:
+          $ref: '#/definitions/domain.Post'
+        type: array
+    type: object
+  handler.updateReplyRequest:
+    properties:
+      content:
+        maxLength: 280
+        type: string
+      replyId:
+        type: string
+    required:
+    - content
+    - replyId
+    type: object
+info:
+  contact: {}
+  description: Anonymous microblogging API for posts, replies, reactions, feeds, and
+    moderation.
+  title: Echo API
+  version: "1.0"
+paths:
+  /admin/reports/action:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Action payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.moderateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.okResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resolve report
+      tags:
+      - admin
+  /admin/reports/list:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: List payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.listReportsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.listReportsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List open reports
+      tags:
+      - admin
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.refreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Refresh session token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.registerResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Register anonymous session
+      tags:
+      - auth
+  /feed/latest:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Feed payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.latestFeedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.latestFeedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Latest feed
+      tags:
+      - feed
+  /feed/trending:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Feed payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.trendingFeedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.trendingFeedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Trending feed
+      tags:
+      - feed
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.healthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handler.healthResponse'
+      summary: Service health
+      tags:
+      - health
+  /posts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createPostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Post'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create post
+      tags:
+      - posts
+  /posts/delete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.deletePostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.okResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete post
+      tags:
+      - posts
+  /posts/get:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.getPostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Post'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Get post by ID
+      tags:
+      - posts
+  /posts/react:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reaction payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.reactRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.okResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: React to post
+      tags:
+      - reactions
+  /posts/replies/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reply payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createReplyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Reply'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create reply
+      tags:
+      - replies
+  /posts/replies/delete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Delete payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.deleteReplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.okResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete reply
+      tags:
+      - replies
+  /posts/replies/list:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: List payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.listRepliesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.listRepliesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: List replies for post
+      tags:
+      - replies
+  /posts/replies/react:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reaction payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.reactReplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.okResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: React to reply
+      tags:
+      - replies
+  /posts/replies/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateReplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Reply'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update reply
+      tags:
+      - replies
+  /posts/report:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Report payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createReportRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.createReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Report post
+      tags:
+      - reports
+  /posts/search:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Search payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.searchPostsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.searchPostsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Search posts
+      tags:
+      - posts
+  /ws/feed:
+    get:
+      responses: {}
+      summary: Realtime feed websocket
+      tags:
+      - websocket
+securityDefinitions:
+  BearerAuth:
+    description: Bearer <token>
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

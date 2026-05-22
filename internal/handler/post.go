@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -15,6 +19,8 @@ type Post struct {
 type createPostRequest struct {
 	Content string `json:"content" binding:"required,max=280"`
 }
+
+const maxPostAttachmentSize = 10 * 1024 * 1024
 
 type getPostRequest struct {
 	ID string `json:"id" binding:"required"`
@@ -39,6 +45,7 @@ func NewPost(posts domain.PostService) *Post {
 
 func (p *Post) RegisterPublic(rg *gin.RouterGroup) {
 	rg.POST("/get", p.getByID)
+	rg.GET("/attachments/:id", p.getAttachment)
 	rg.POST("/search", p.search)
 }
 
@@ -67,9 +74,8 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 // @Failure 500 {object} errorResponse
 // @Router /posts [post]
 func (p *Post) create(c *gin.Context) {
-	var req createPostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeValidationError(c, err)
+	content, attachment, ok := p.parseCreateRequest(c)
+	if !ok {
 		return
 	}
 
@@ -97,13 +103,85 @@ func (p *Post) create(c *gin.Context) {
 		return
 	}
 
-	post, err := p.posts.Create(c.Request.Context(), userID, pseudonym, req.Content)
+	post, err := p.posts.Create(c.Request.Context(), userID, pseudonym, content, attachment)
 	if err != nil {
 		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, post)
+}
+
+func (p *Post) parseCreateRequest(c *gin.Context) (string, *domain.PostAttachment, bool) {
+	contentType := c.GetHeader("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxPostAttachmentSize+1024*1024)
+		if err := c.Request.ParseMultipartForm(maxPostAttachmentSize); err != nil {
+			writeDomainError(c, domain.ErrInvalidInput)
+			return "", nil, false
+		}
+
+		attachment, err := readPostAttachment(c)
+		if err != nil {
+			writeDomainError(c, domain.ErrInvalidInput)
+			return "", nil, false
+		}
+
+		return c.PostForm("content"), attachment, true
+	}
+
+	var req createPostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return "", nil, false
+	}
+
+	return req.Content, nil, true
+}
+
+func readPostAttachment(c *gin.Context) (*domain.PostAttachment, error) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		if err == http.ErrMissingFile {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if fileHeader.Size <= 0 || fileHeader.Size > maxPostAttachmentSize {
+		return nil, domain.ErrInvalidInput
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxPostAttachmentSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 || len(data) > maxPostAttachmentSize {
+		return nil, domain.ErrInvalidInput
+	}
+
+	fileName := strings.TrimSpace(filepath.Base(fileHeader.Filename))
+	if fileName == "" || fileName == "." {
+		fileName = "attachment"
+	}
+
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(data)
+	}
+
+	return &domain.PostAttachment{
+		ID:          uuid.New(),
+		FileName:    fileName,
+		ContentType: contentType,
+		Size:        int64(len(data)),
+		Data:        data,
+	}, nil
 }
 
 // @Summary Delete post
@@ -182,6 +260,24 @@ func (p *Post) getByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, post)
+}
+
+func (p *Post) getAttachment(c *gin.Context) {
+	attachmentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	attachment, err := p.posts.GetAttachment(c.Request.Context(), attachmentID)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	disposition := mime.FormatMediaType("inline", map[string]string{"filename": attachment.FileName})
+	c.Header("Content-Disposition", disposition)
+	c.Data(http.StatusOK, attachment.ContentType, attachment.Data)
 }
 
 // @Summary Search posts

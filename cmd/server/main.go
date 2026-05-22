@@ -223,5 +223,11 @@ func syncDevSchema(db *gorm.DB) error {
 		}
 	}
 
+	if !db.Migrator().HasTable(&domain.PostAttachment{}) {
+		if err := db.Migrator().CreateTable(&domain.PostAttachment{}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
