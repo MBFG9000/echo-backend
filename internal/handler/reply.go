@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -14,6 +16,11 @@ type Reply struct {
 
 type createReplyRequest struct {
 	PostID        string `json:"postId" binding:"required"`
+	ParentReplyID string `json:"parentReplyId"`
+	Content       string `json:"content" binding:"required,max=280"`
+}
+
+type createReplyBody struct {
 	ParentReplyID string `json:"parentReplyId"`
 	Content       string `json:"content" binding:"required,max=280"`
 }
@@ -46,13 +53,17 @@ func NewReply(posts domain.PostService) *Reply {
 }
 
 func (r *Reply) RegisterPublic(rg *gin.RouterGroup) {
+	rg.GET("/:id/replies", r.listFromParam)
 	rg.POST("/replies/list", r.list)
 }
 
 func (r *Reply) RegisterPrivate(rg *gin.RouterGroup) {
+	rg.POST("/:id/replies", r.createFromParam)
 	rg.POST("/replies/create", r.create)
 	rg.POST("/replies/update", r.update)
 	rg.POST("/replies/delete", r.delete)
+	rg.POST("/replies/:replyId/react", r.reactFromParam)
+	rg.DELETE("/replies/:replyId/react", r.unreactFromParam)
 	rg.POST("/replies/react", r.react)
 }
 
@@ -81,16 +92,38 @@ func (r *Reply) create(c *gin.Context) {
 		return
 	}
 
-	var parentReplyID *uuid.UUID
-	if req.ParentReplyID != "" {
-		parsed, parseErr := uuid.Parse(req.ParentReplyID)
-		if parseErr != nil {
-			writeDomainError(c, domain.ErrInvalidInput)
-			return
-		}
-		parentReplyID = &parsed
+	parentReplyID, err := parseOptionalReplyID(req.ParentReplyID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
 	}
 
+	r.writeCreatedReply(c, postID, parentReplyID, req.Content)
+}
+
+func (r *Reply) createFromParam(c *gin.Context) {
+	postID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	var req createReplyBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	parentReplyID, err := parseOptionalReplyID(req.ParentReplyID)
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	r.writeCreatedReply(c, postID, parentReplyID, req.Content)
+}
+
+func (r *Reply) writeCreatedReply(c *gin.Context, postID uuid.UUID, parentReplyID *uuid.UUID, content string) {
 	userIDValue, ok := c.Get("userID")
 	if !ok {
 		writeDomainError(c, domain.ErrUnauthorized)
@@ -113,13 +146,39 @@ func (r *Reply) create(c *gin.Context) {
 		return
 	}
 
-	reply, err := r.posts.CreateReply(c.Request.Context(), postID, parentReplyID, userID, pseudonym, req.Content)
+	reply, err := r.posts.CreateReply(c.Request.Context(), postID, parentReplyID, userID, pseudonym, content)
 	if err != nil {
 		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, reply)
+}
+
+func (r *Reply) listFromParam(c *gin.Context) {
+	postID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	limit := 20
+	if raw := c.Query("limit"); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil {
+			writeDomainError(c, domain.ErrInvalidInput)
+			return
+		}
+		limit = parsed
+	}
+
+	replies, err := r.posts.ListReplies(c.Request.Context(), postID, limit)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, listRepliesResponse{Replies: replies})
 }
 
 // @Summary List replies for post
@@ -273,22 +332,71 @@ func (r *Reply) react(c *gin.Context) {
 		return
 	}
 
-	userIDValue, ok := c.Get("userID")
-	if !ok {
-		writeDomainError(c, domain.ErrUnauthorized)
+	r.reactReply(c, replyID, req.Kind)
+}
+
+func (r *Reply) reactFromParam(c *gin.Context) {
+	replyID, err := uuid.Parse(c.Param("replyId"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
 		return
 	}
 
-	userID, ok := userIDValue.(uuid.UUID)
-	if !ok {
-		writeDomainError(c, domain.ErrUnauthorized)
+	var body struct {
+		Kind domain.ReactionKind `json:"kind" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeValidationError(c, err)
 		return
 	}
 
-	if err := r.posts.ReactReply(c.Request.Context(), replyID, userID, req.Kind); err != nil {
+	r.reactReply(c, replyID, body.Kind)
+}
+
+func (r *Reply) unreactFromParam(c *gin.Context) {
+	replyID, err := uuid.Parse(c.Param("replyId"))
+	if err != nil {
+		writeDomainError(c, domain.ErrInvalidInput)
+		return
+	}
+
+	userID, ok := userIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	if err := r.posts.UnreactReply(c.Request.Context(), replyID, userID); err != nil {
 		writeDomainError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (r *Reply) reactReply(c *gin.Context, replyID uuid.UUID, kind domain.ReactionKind) {
+	userID, ok := userIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	if err := r.posts.ReactReply(c.Request.Context(), replyID, userID, kind); err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func parseOptionalReplyID(raw string) (*uuid.UUID, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	parsed, err := uuid.Parse(trimmed)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
 }

@@ -58,5 +58,5 @@ func (h *Health) check(c *gin.Context) {
 		httpStatus = http.StatusServiceUnavailable
 	}
 
-	c.JSON(httpStatus, gin.H{"status": status, "db": dbStatus, "redis": redisStatus})
+	c.JSON(httpStatus, healthResponse{Status: status, DB: dbStatus, Redis: redisStatus})
 }

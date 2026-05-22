@@ -104,6 +104,14 @@ func (s *postRepoStub) UpsertReplyReaction(ctx context.Context, replyID, userID 
 	return nil
 }
 
+func (s *postRepoStub) DeleteReaction(ctx context.Context, postID, userID uuid.UUID) error {
+	return nil
+}
+
+func (s *postRepoStub) DeleteReplyReaction(ctx context.Context, replyID, userID uuid.UUID) error {
+	return nil
+}
+
 type broadcasterStub struct {
 	payload []byte
 }

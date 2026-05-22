@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,7 @@ type refreshResponse struct {
 }
 
 type refreshRequest struct {
-	Token string `json:"token" binding:"required"`
+	Token string `json:"token"`
 }
 
 func NewAuth(auth domain.AuthService) *Auth {
@@ -60,17 +61,33 @@ func (a *Auth) register(c *gin.Context) {
 // @Failure 500 {object} errorResponse
 // @Router /auth/refresh [post]
 func (a *Auth) refresh(c *gin.Context) {
-	var req refreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeValidationError(c, err)
+	token := refreshTokenFromRequest(c)
+	if token == "" {
+		writeDomainError(c, domain.ErrUnauthorized)
 		return
 	}
 
-	token, err := a.auth.Refresh(c.Request.Context(), req.Token)
+	newToken, err := a.auth.Refresh(c.Request.Context(), token)
 	if err != nil {
 		writeDomainError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, refreshResponse{Token: token})
+	c.JSON(http.StatusOK, refreshResponse{Token: newToken})
+}
+
+func refreshTokenFromRequest(c *gin.Context) string {
+	var req refreshRequest
+	_ = c.ShouldBindJSON(&req)
+	if trimmed := strings.TrimSpace(req.Token); trimmed != "" {
+		return trimmed
+	}
+
+	authorization := c.GetHeader("Authorization")
+	parts := strings.SplitN(authorization, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+
+	return strings.TrimSpace(parts[1])
 }

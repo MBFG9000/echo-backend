@@ -101,6 +101,14 @@ func (p *Post) React(ctx context.Context, postID, userID uuid.UUID, kind domain.
 	return p.posts.UpsertReaction(ctx, postID, userID, kind)
 }
 
+func (p *Post) Unreact(ctx context.Context, postID, userID uuid.UUID) error {
+	if _, err := p.posts.GetByID(ctx, postID); err != nil {
+		return err
+	}
+
+	return p.posts.DeleteReaction(ctx, postID, userID)
+}
+
 func (p *Post) CreateReply(ctx context.Context, postID uuid.UUID, parentReplyID *uuid.UUID, authorID uuid.UUID, pseudonym, content string) (*domain.Reply, error) {
 	trimmed := strings.TrimSpace(content)
 	if trimmed == "" || len(trimmed) > 280 {
@@ -165,4 +173,8 @@ func (p *Post) ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind d
 	}
 
 	return p.posts.UpsertReplyReaction(ctx, replyID, userID, kind)
+}
+
+func (p *Post) UnreactReply(ctx context.Context, replyID, userID uuid.UUID) error {
+	return p.posts.DeleteReplyReaction(ctx, replyID, userID)
 }
