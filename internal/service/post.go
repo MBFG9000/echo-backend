@@ -2,24 +2,18 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/google/uuid"
 )
 
-type PostBroadcaster interface {
-	Broadcast(payload []byte)
-}
-
 type Post struct {
-	posts       domain.PostRepository
-	broadcaster PostBroadcaster
+	posts domain.PostRepository
 }
 
-func NewPost(posts domain.PostRepository, broadcaster PostBroadcaster) *Post {
-	return &Post{posts: posts, broadcaster: broadcaster}
+func NewPost(posts domain.PostRepository) *Post {
+	return &Post{posts: posts}
 }
 
 func (p *Post) Create(ctx context.Context, authorID uuid.UUID, pseudonym, content string, attachment *domain.PostAttachment) (*domain.Post, error) {
@@ -42,12 +36,6 @@ func (p *Post) Create(ctx context.Context, authorID uuid.UUID, pseudonym, conten
 
 	if err := p.posts.Create(ctx, post); err != nil {
 		return nil, err
-	}
-
-	if p.broadcaster != nil {
-		if payload, err := json.Marshal(post); err == nil {
-			p.broadcaster.Broadcast(payload)
-		}
 	}
 
 	return post, nil

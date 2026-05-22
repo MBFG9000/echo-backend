@@ -2,14 +2,18 @@ package hub
 
 import (
 	"context"
+	"sync/atomic"
+
+	"github.com/echo-app/echo/internal/metrics"
 )
 
 type Hub struct {
-	clients    map[*Client]struct{}
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	quit       chan struct{}
+	clients     map[*Client]struct{}
+	broadcast   chan []byte
+	register    chan *Client
+	unregister  chan *Client
+	quit        chan struct{}
+	clientCount atomic.Int32
 }
 
 func NewHub() *Hub {
@@ -31,10 +35,14 @@ func (h *Hub) Run(ctx context.Context) {
 				close(c.send)
 				_ = c.conn.Close()
 			}
+			h.clientCount.Store(0)
+			metrics.WSConnections.Set(0)
 			close(h.quit)
 			return
 		case c := <-h.register:
 			h.clients[c] = struct{}{}
+			h.clientCount.Add(1)
+			metrics.WSConnections.Set(float64(h.clientCount.Load()))
 		case c := <-h.unregister:
 			h.remove(c)
 		case payload := <-h.broadcast:
@@ -78,6 +86,12 @@ func (h *Hub) remove(c *Client) {
 	}
 
 	delete(h.clients, c)
+	h.clientCount.Add(-1)
+	metrics.WSConnections.Set(float64(h.clientCount.Load()))
 	close(c.send)
 	_ = c.conn.Close()
+}
+
+func (h *Hub) ClientCount() int {
+	return int(h.clientCount.Load())
 }

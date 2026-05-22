@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type Post struct {
-	db *gorm.DB
+	db     *gorm.DB
+	outbox *Outbox
 }
 
-func NewPost(db *gorm.DB) *Post {
-	return &Post{db: db}
+func NewPost(db *gorm.DB, outbox *Outbox) *Post {
+	return &Post{db: db, outbox: outbox}
 }
 
 func (p *Post) Create(ctx context.Context, post *domain.Post) error {
@@ -41,11 +43,34 @@ func (p *Post) Create(ctx context.Context, post *domain.Post) error {
 			return err
 		}
 		if post.Attachment != nil {
-			return tx.Create(post.Attachment).Error
+			if err := tx.Create(post.Attachment).Error; err != nil {
+				return err
+			}
 		}
 
-		return nil
+		if p.outbox == nil {
+			return nil
+		}
+
+		payload, err := json.Marshal(postBroadcastPayload(post))
+		if err != nil {
+			return err
+		}
+
+		return p.outbox.EnqueueTx(tx, domain.OutboxEventPostCreated, payload)
 	})
+}
+
+func postBroadcastPayload(post *domain.Post) *domain.Post {
+	if post.Attachment == nil {
+		return post
+	}
+
+	copyPost := *post
+	attachment := *post.Attachment
+	attachment.Data = nil
+	copyPost.Attachment = &attachment
+	return &copyPost
 }
 
 func (p *Post) DeleteByAuthor(ctx context.Context, postID, authorID uuid.UUID) error {
@@ -99,7 +124,8 @@ func (p *Post) Search(ctx context.Context, query string, limit int) ([]domain.Po
 	posts := make([]domain.Post, 0, limit)
 	err := p.db.WithContext(ctx).
 		Where("is_hidden = false").
-		Where("content ILIKE ? OR pseudonym ILIKE ?", "%"+query+"%", "%"+query+"%").
+		Where("search_vector @@ plainto_tsquery('simple', ?)", query).
+		Order(gorm.Expr("ts_rank(search_vector, plainto_tsquery('simple', ?)) DESC", query)).
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&posts).Error

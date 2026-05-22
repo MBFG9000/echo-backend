@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/echo-app/echo/internal/domain"
+	"github.com/echo-app/echo/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -78,6 +79,15 @@ func (f *Feed) latest(c *gin.Context) {
 	nextValue := ""
 	if next != nil {
 		nextValue = next.CreatedAt.Format("2006-01-02T15:04:05.999999999Z07:00")
+	}
+
+	if c.Request.Method == http.MethodGet {
+		etag := service.LatestFeedETag(limit, cursorRaw, posts)
+		c.Header("ETag", etag)
+		if inm := strings.TrimSpace(c.GetHeader("If-None-Match")); inm == etag {
+			c.Status(http.StatusNotModified)
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, latestFeedResponse{Posts: posts, NextCursor: nextValue})
