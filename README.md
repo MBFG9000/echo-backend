@@ -4,7 +4,7 @@ Echo backend is an anonymous microblogging API for posts, replies, reactions, re
 
 ## Prerequisites
 
-- Go 1.22
+- Go 1.25
 - Docker
 
 ## Quick start
@@ -53,17 +53,21 @@ PostgreSQL
 ```
 
 ## API endpoints
-
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | /health | No | Service health with DB and Redis checks |
 | POST | /auth/register | No | Create anonymous session and return JWT + pseudonym |
 | POST | /auth/refresh | No | Rotate JWT for current session (token in body) |
-| POST | /posts | Yes | Create post (max 280 chars) |
+| POST | /posts | Yes | Create post (JSON or multipart with optional file) |
 | POST | /posts/get | No | Get post by ID |
+| GET | /posts/attachments/:id | No | Download post attachment |
+| POST | /posts/search | No | Search posts by content or pseudonym |
 | POST | /posts/delete | Yes | Delete own post |
-| POST | /posts/replies/create | Yes | Create reply to post |
+| POST | /posts/replies/create | Yes | Create reply (optional parent for threading) |
 | POST | /posts/replies/list | No | List post replies |
+| POST | /posts/replies/update | Yes | Edit own reply |
+| POST | /posts/replies/delete | Yes | Delete own reply |
+| POST | /posts/replies/react | Yes | Upvote or downvote reply |
 | POST | /posts/react | Yes | Upvote or downvote post |
 | POST | /posts/report | Yes | Report post for moderation |
 | POST | /feed/latest | No | Latest feed with cursor pagination |
