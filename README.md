@@ -45,6 +45,8 @@ Swagger UI: http://localhost:8081
 
 Do not run `go run` and `docker compose up app` at the same time — both use port 8080.
 
+Set `APP_PUBLIC_URL` in `.env` to your public frontend origin (no trailing slash). It is used for `GET /posts/:id/share` links and must match the URL users open in the browser (e.g. `http://your-host:8081` on VPS).
+
 ## Swagger docs
 
 ```bash
