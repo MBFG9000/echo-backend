@@ -20,8 +20,10 @@ import (
 	"github.com/echo-app/echo/internal/middleware"
 	"github.com/echo-app/echo/internal/repository"
 	"github.com/echo-app/echo/internal/service"
+	"github.com/echo-app/echo/internal/worker"
 	"github.com/echo-app/echo/pkg/pseudonym"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -64,7 +66,8 @@ func run() error {
 	}
 
 	userRepo := repository.NewUser(db)
-	postRepo := repository.NewPost(db)
+	outboxRepo := repository.NewOutbox(db)
+	postRepo := repository.NewPost(db, outboxRepo)
 	feedRepo := repository.NewFeed(db)
 	reportRepo := repository.NewReport(db)
 	feedHub := hub.NewHub()
@@ -72,9 +75,10 @@ func run() error {
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	defer hubCancel()
 	go feedHub.Run(hubCtx)
+	go worker.NewOutbox(outboxRepo, feedHub, slog.Default()).Run(hubCtx)
 
 	authService := service.NewAuth(userRepo, pseudonym.NewRandom(time.Now().UnixNano()), redisClient, cfg.JWT.Secret, cfg.JWT.TTL)
-	postService := service.NewPost(postRepo, feedHub)
+	postService := service.NewPost(postRepo)
 	feedService := service.NewFeed(feedRepo, redisClient)
 	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
 
@@ -106,6 +110,8 @@ func run() error {
 
 	router := gin.New()
 	router.Use(
+		middleware.RequestID(),
+		middleware.Metrics(),
 		middleware.NoIP(!cfg.IsProduction()),
 		gin.Recovery(),
 		middleware.Security(cfg),
@@ -114,6 +120,7 @@ func run() error {
 		loggerMiddleware.Handler(),
 		corsMiddleware.Handler(),
 	)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/swagger/doc.json", func(c *gin.Context) {
 		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(docs.SwaggerInfo.ReadDoc()))
 	})
@@ -127,7 +134,7 @@ func run() error {
 	replyHandler.RegisterPublic(publicPosts)
 
 	privatePosts := router.Group("/posts")
-	privatePosts.Use(authMiddleware.Handler())
+	privatePosts.Use(authMiddleware.Handler(), middleware.Idempotency(redisClient))
 	postHandler.RegisterPrivate(privatePosts, rateLimitMiddleware.PostCreate())
 	replyHandler.RegisterPrivate(privatePosts)
 	reactionHandler.Register(privatePosts)
@@ -225,6 +232,12 @@ func syncDevSchema(db *gorm.DB) error {
 
 	if !db.Migrator().HasTable(&domain.PostAttachment{}) {
 		if err := db.Migrator().CreateTable(&domain.PostAttachment{}); err != nil {
+			return err
+		}
+	}
+
+	if !db.Migrator().HasTable(&domain.OutboxEvent{}) {
+		if err := db.Migrator().CreateTable(&domain.OutboxEvent{}); err != nil {
 			return err
 		}
 	}

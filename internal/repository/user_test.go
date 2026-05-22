@@ -63,6 +63,7 @@ func setupPostgres(t *testing.T) (*gorm.DB, func()) {
 		&domain.Reply{},
 		&domain.ReplyReaction{},
 		&domain.Reaction{},
+		&domain.OutboxEvent{},
 	); err != nil {
 		container.Terminate(ctx)
 		t.Fatalf("auto migration failed: %v", err)

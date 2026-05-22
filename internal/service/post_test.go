@@ -112,24 +112,15 @@ func (s *postRepoStub) DeleteReplyReaction(ctx context.Context, replyID, userID 
 	return nil
 }
 
-type broadcasterStub struct {
-	payload []byte
-}
-
-func (b *broadcasterStub) Broadcast(payload []byte) {
-	b.payload = payload
-}
-
 func TestPost_Create(t *testing.T) {
 	created := false
-	broadcaster := &broadcasterStub{}
 	stubRepo := &postRepoStub{}
 	stubRepo.create = func(ctx context.Context, post *domain.Post) error {
 		created = true
 		return nil
 	}
 
-	p := NewPost(stubRepo, broadcaster)
+	p := NewPost(stubRepo)
 
 	actionables := []struct {
 		name      string
@@ -145,7 +136,6 @@ func TestPost_Create(t *testing.T) {
 	for _, tc := range actionables {
 		t.Run(tc.name, func(t *testing.T) {
 			created = false
-			broadcaster.payload = nil
 			post, err := p.Create(context.Background(), uuid.New(), tc.pseudonym, tc.content, nil)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected err %v got %v", tc.wantErr, err)
@@ -156,9 +146,6 @@ func TestPost_Create(t *testing.T) {
 				}
 				if !created {
 					t.Fatal("expected Create() called")
-				}
-				if broadcaster.payload == nil {
-					t.Fatal("expected broadcast payload")
 				}
 			}
 		})
@@ -198,7 +185,7 @@ func TestPost_Delete(t *testing.T) {
 				return nil
 			}
 
-			p := NewPost(stubRepo, nil)
+			p := NewPost(stubRepo)
 			err := p.Delete(context.Background(), postID, tc.userID)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected %v got %v", tc.wantErr, err)
@@ -237,7 +224,7 @@ func TestPost_React(t *testing.T) {
 				return tc.repoErr
 			}
 
-			p := NewPost(stubRepo, nil)
+			p := NewPost(stubRepo)
 			err := p.React(context.Background(), postID, userID, tc.kind)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("expected %v got %v", tc.wantErr, err)
@@ -264,7 +251,7 @@ func TestPost_CreateReplyAndList(t *testing.T) {
 		return []domain.Reply{{ID: uuid.New(), PostID: postID, AuthorID: authorID, Content: "a"}}, nil
 	}
 
-	p := NewPost(stubRepo, nil)
+	p := NewPost(stubRepo)
 	_, err := p.CreateReply(context.Background(), postID, nil, authorID, "pseudonym", "reply")
 	if err != nil {
 		t.Fatal(err)

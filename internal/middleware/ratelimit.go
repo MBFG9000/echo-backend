@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/echo-app/echo/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -73,6 +74,7 @@ func (r *RateLimit) handler(scope string, limit int64, window time.Duration) gin
 		}
 
 		if countCmd.Val() > limit {
+			metrics.RateLimitHitsTotal.WithLabelValues(scope).Inc()
 			c.Header("Retry-After", strconv.FormatInt(int64(window.Seconds()), 10))
 			c.JSON(http.StatusTooManyRequests, httpError{Error: "rate limit exceeded", Code: "ERR_RATE_LIMIT"})
 			c.Abort()

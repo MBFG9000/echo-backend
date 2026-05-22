@@ -52,6 +52,22 @@ go install github.com/swaggo/swag/cmd/swag@v1.16.3
 swag init -g cmd/server/main.go -o docs
 ```
 
+## Production-oriented features
+
+| Feature | Endpoint / header | Notes |
+|---|---|---|
+| Prometheus metrics | `GET /metrics` | `http_requests_total`, latency histogram, `ws_connections_active`, `rate_limit_hits_total` |
+| Request tracing | `X-Request-ID` | Echoed in response; included in structured logs |
+| Idempotent creates | `Idempotency-Key: <uuid>` | `POST /posts`, `POST /posts/:id/replies` — 24h Redis cache |
+| Full-text search | `POST /posts/search` | PostgreSQL `tsvector` + GIN (migration `000005`) |
+| Transactional outbox | internal | New posts → `outbox_events` → worker → WebSocket broadcast |
+| Feed caching | `GET /feed/latest` | `ETag` / `If-None-Match` → `304` when unchanged |
+
+```bash
+curl -s http://localhost:8080/metrics | head
+curl -sI -H 'If-None-Match: W/"abc"' 'http://localhost:8080/feed/latest?limit=20'
+```
+
 ## Architecture (ASCII)
 
 ```text
@@ -80,6 +96,7 @@ PostgreSQL
 ## API endpoints
 | Method | Path | Auth | Description |
 |---|---|---|---|
+| GET | /metrics | No | Prometheus metrics |
 | GET | /health | No | Service health with DB and Redis checks |
 | POST | /auth/register | No | Create anonymous session and return JWT + pseudonym |
 | POST | /auth/refresh | No | Rotate JWT (Bearer header or token in body) |
@@ -105,7 +122,7 @@ PostgreSQL
 | POST | /posts/react | Yes | Upvote or downvote post (legacy JSON body: `postId`) |
 | POST | /posts/:id/report | Yes | Report post for moderation |
 | POST | /posts/report | Yes | Report post (legacy JSON body: `postId`) |
-| GET | /feed/latest | No | Latest feed with cursor pagination |
+| GET | /feed/latest | No | Latest feed with cursor pagination (`ETag` / `304`) |
 | POST | /feed/latest | No | Latest feed (legacy JSON body) |
 | GET | /feed/trending | No | Trending feed |
 | POST | /feed/trending | No | Trending feed (legacy JSON body) |

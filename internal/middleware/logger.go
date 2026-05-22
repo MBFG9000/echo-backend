@@ -32,6 +32,12 @@ func (l *Logger) Handler() gin.HandlerFunc {
 			slog.Duration("latency", time.Since(startedAt)),
 		}
 
+		if id, ok := c.Get(RequestIDKey); ok {
+			if s, ok := id.(string); ok && s != "" {
+				attrs = append(attrs, slog.String("request_id", s))
+			}
+		}
+
 		if v, ok := c.Get("pseudonym"); ok {
 			if s, ok := v.(string); ok && s != "" {
 				attrs = append(attrs, slog.String("pseudonym", s))

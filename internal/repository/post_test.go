@@ -13,7 +13,7 @@ func TestPostRepository_CreateGetDelete(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
 
-	repo := NewPost(db)
+	repo := NewPost(db, NewOutbox(db))
 	post := &domain.Post{ID: uuid.New(), AuthorID: uuid.New(), Pseudonym: "post-author", Content: "foo"}
 	if err := repo.Create(context.Background(), post); err != nil {
 		t.Fatalf("create post failed: %v", err)
@@ -40,7 +40,7 @@ func TestPostRepository_RepliesAndReactions(t *testing.T) {
 	db, cleanup := setupPostgres(t)
 	defer cleanup()
 
-	repo := NewPost(db)
+	repo := NewPost(db, NewOutbox(db))
 	post := &domain.Post{ID: uuid.New(), AuthorID: uuid.New(), Pseudonym: "post-author", Content: "foo"}
 	if err := repo.Create(context.Background(), post); err != nil {
 		t.Fatalf("create post failed: %v", err)
