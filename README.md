@@ -7,18 +7,43 @@ Echo backend is an anonymous microblogging API for posts, replies, reactions, re
 - Go 1.25
 - Docker
 
-## Quick start
+## Quick start (local `go run`)
+
+Recommended for day-to-day development: DB/Redis in Docker, API on the host.
 
 ```bash
 git clone https://github.com/MBFG9000/echo-backend
 cd echo-backend
-cp .env.example .env
-docker compose up -d
+cp .env.example.localhost .env
+cp docker-compose.override.example.yml docker-compose.override.yml
+docker compose up -d postgres redis
+docker compose run --rm migrate
 go run ./cmd/server
 ```
 
 API base URL: http://localhost:8080
+
+Optional Swagger UI (expects the server above on :8080):
+
+```bash
+docker compose up -d swagger-ui
+```
+
 Swagger UI: http://localhost:8081
+
+## Quick start (full Docker stack)
+
+Runs the API in a container instead of `go run`:
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+API base URL: http://localhost:8080  
+Swagger UI: http://localhost:8081
+
+Do not run `go run` and `docker compose up app` at the same time — both use port 8080.
 
 ## Swagger docs
 

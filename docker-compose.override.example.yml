@@ -1,0 +1,16 @@
+# Local development: Postgres + Redis on localhost for `go run ./cmd/server`
+#
+# Setup once:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#
+# Then start only infra (do not start the app container on :8080):
+#   docker compose up -d postgres redis
+#   docker compose run --rm migrate
+
+services:
+  postgres:
+    ports:
+      - "${DB_PORT:-55432}:5432"
+  redis:
+    ports:
+      - "6379:6379"
