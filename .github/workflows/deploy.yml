@@ -1,0 +1,128 @@
+name: deploy
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: echo-backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    env:
+      DEPLOY_PATH: /srv/echo-backend
+      COMPOSE_PROJECT_NAME: echo-backend
+      DEPLOY_REF: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_REF }}
+
+      - name: Create release archive
+        run: git archive --format=tar.gz --output "echo-backend-${{ env.DEPLOY_REF }}.tar.gz" "${{ env.DEPLOY_REF }}"
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload release archive
+        run: |
+          scp "echo-backend-${{ env.DEPLOY_REF }}.tar.gz" \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/echo-backend-${{ env.DEPLOY_REF }}.tar.gz"
+
+      - name: Deploy on VPS
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "DEPLOY_SHA='${{ env.DEPLOY_REF }}' DEPLOY_PATH='${{ env.DEPLOY_PATH }}' COMPOSE_PROJECT_NAME='${{ env.COMPOSE_PROJECT_NAME }}' bash -s" <<'EOF'
+          set -euo pipefail
+
+          RELEASES_DIR="$DEPLOY_PATH/releases"
+          SHARED_DIR="$DEPLOY_PATH/shared"
+          CURRENT_LINK="$DEPLOY_PATH/current"
+          NEW_RELEASE="$RELEASES_DIR/$DEPLOY_SHA"
+          ARCHIVE="/tmp/echo-backend-$DEPLOY_SHA.tar.gz"
+          PREV_RELEASE=""
+
+          if [ -L "$CURRENT_LINK" ]; then
+            PREV_RELEASE="$(readlink -f "$CURRENT_LINK")"
+          fi
+
+          install -d "$RELEASES_DIR" "$SHARED_DIR"
+          rm -rf "$NEW_RELEASE"
+          mkdir -p "$NEW_RELEASE"
+          tar -xzf "$ARCHIVE" -C "$NEW_RELEASE"
+
+          test -f "$SHARED_DIR/.env"
+
+          set -a
+          . "$SHARED_DIR/.env"
+          set +a
+
+          docker compose \
+            -p "$COMPOSE_PROJECT_NAME" \
+            --env-file "$SHARED_DIR/.env" \
+            -f "$NEW_RELEASE/docker-compose.yml" \
+            up -d postgres redis
+
+          docker compose \
+            -p "$COMPOSE_PROJECT_NAME" \
+            --env-file "$SHARED_DIR/.env" \
+            -f "$NEW_RELEASE/docker-compose.yml" \
+            build app
+
+          docker compose \
+            -p "$COMPOSE_PROJECT_NAME" \
+            --env-file "$SHARED_DIR/.env" \
+            -f "$NEW_RELEASE/docker-compose.yml" \
+            run --rm migrate
+
+          ln -sfn "$NEW_RELEASE" "$CURRENT_LINK"
+
+          docker compose \
+            -p "$COMPOSE_PROJECT_NAME" \
+            --env-file "$SHARED_DIR/.env" \
+            -f "$CURRENT_LINK/docker-compose.yml" \
+            up -d --no-deps app swagger-ui
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${APP_PORT:-8080}/health" >/dev/null; then
+              rm -f "$ARCHIVE"
+              ls -1dt "$RELEASES_DIR"/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+              exit 0
+            fi
+            sleep 5
+          done
+
+          docker compose \
+            -p "$COMPOSE_PROJECT_NAME" \
+            --env-file "$SHARED_DIR/.env" \
+            -f "$CURRENT_LINK/docker-compose.yml" \
+            logs --no-color app postgres redis || true
+
+          if [ -n "$PREV_RELEASE" ] && [ -d "$PREV_RELEASE" ]; then
+            ln -sfn "$PREV_RELEASE" "$CURRENT_LINK"
+            docker compose \
+              -p "$COMPOSE_PROJECT_NAME" \
+              --env-file "$SHARED_DIR/.env" \
+              -f "$CURRENT_LINK/docker-compose.yml" \
+              up -d --build --no-deps app swagger-ui
+          fi
+
+          exit 1
+          EOF
