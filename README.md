@@ -53,6 +53,7 @@ PostgreSQL
 | POST | /auth/refresh | Yes | Rotate JWT for current session |
 | POST | /posts | Yes | Create post (max 280 chars) |
 | GET | /posts/:id | No | Get post by ID |
+| GET | /posts/:id/share | No | Get canonical share URL for a post |
 | DELETE | /posts/:id | Yes | Delete own post |
 | POST | /posts/:id/replies | Yes | Create reply to post |
 | GET | /posts/:id/replies | No | List post replies |
