@@ -29,6 +29,10 @@ type searchPostsRequest struct {
 	Limit int    `json:"limit"`
 }
 
+type searchPostsResponse struct {
+	Posts []domain.Post `json:"posts"`
+}
+
 func NewPost(posts domain.PostService) *Post {
 	return &Post{posts: posts}
 }
@@ -51,6 +55,17 @@ func (p *Post) RegisterPrivate(rg *gin.RouterGroup, createMiddleware ...gin.Hand
 	rg.POST("/delete", p.delete)
 }
 
+// @Summary Create post
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body createPostRequest true "Post payload"
+// @Success 201 {object} domain.Post
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts [post]
 func (p *Post) create(c *gin.Context) {
 	var req createPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,6 +106,18 @@ func (p *Post) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, post)
 }
 
+// @Summary Delete post
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body deletePostRequest true "Post ID"
+// @Success 200 {object} okResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/delete [post]
 func (p *Post) delete(c *gin.Context) {
 	var req deletePostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,6 +152,16 @@ func (p *Post) delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// @Summary Get post by ID
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Param request body getPostRequest true "Post ID"
+// @Success 200 {object} domain.Post
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/get [post]
 func (p *Post) getByID(c *gin.Context) {
 	var req getPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,6 +184,15 @@ func (p *Post) getByID(c *gin.Context) {
 	c.JSON(http.StatusOK, post)
 }
 
+// @Summary Search posts
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Param request body searchPostsRequest true "Search payload"
+// @Success 200 {object} searchPostsResponse
+// @Failure 400 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/search [post]
 func (p *Post) search(c *gin.Context) {
 	var req searchPostsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -160,5 +206,5 @@ func (p *Post) search(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"posts": posts})
+	c.JSON(http.StatusOK, searchPostsResponse{Posts: posts})
 }

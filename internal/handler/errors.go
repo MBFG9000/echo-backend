@@ -15,6 +15,10 @@ type errorResponse struct {
 	Fields map[string]string `json:"fields,omitempty"`
 }
 
+type okResponse struct {
+	OK bool `json:"ok"`
+}
+
 func writeDomainError(c *gin.Context, err error) {
 	status, code := mapDomainError(err)
 	message := messageByCode(code)

@@ -70,6 +70,9 @@ func (w *WS) Register(rg *gin.RouterGroup) {
 	rg.GET("/feed", w.feed)
 }
 
+// @Summary Realtime feed websocket
+// @Tags websocket
+// @Router /ws/feed [get]
 func (w *WS) feed(c *gin.Context) {
 	conn, err := w.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {

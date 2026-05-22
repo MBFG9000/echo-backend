@@ -17,6 +17,11 @@ type createReportRequest struct {
 	Reason string `json:"reason" binding:"required,max=500"`
 }
 
+type createReportResponse struct {
+	OK         bool `json:"ok"`
+	AutoHidden bool `json:"autoHidden"`
+}
+
 func NewReport(reports domain.ReportService) *Report {
 	return &Report{reports: reports}
 }
@@ -25,6 +30,18 @@ func (r *Report) RegisterPrivate(rg *gin.RouterGroup) {
 	rg.POST("/report", r.create)
 }
 
+// @Summary Report post
+// @Tags reports
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body createReportRequest true "Report payload"
+// @Success 201 {object} createReportResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /posts/report [post]
 func (r *Report) create(c *gin.Context) {
 	var req createReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,5 +73,5 @@ func (r *Report) create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"ok": true, "autoHidden": autoHidden})
+	c.JSON(http.StatusCreated, createReportResponse{OK: true, AutoHidden: autoHidden})
 }
