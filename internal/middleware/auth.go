@@ -36,6 +36,53 @@ func NewAuth(secret string, redisClient *redis.Client) *Auth {
 	return &Auth{secret: secret, redis: redisClient}
 }
 
+func (a *Auth) TryUserID(c *gin.Context) (uuid.UUID, bool) {
+	authorization := c.GetHeader("Authorization")
+	if authorization == "" {
+		return uuid.Nil, false
+	}
+
+	parts := strings.SplitN(authorization, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return uuid.Nil, false
+	}
+
+	token, err := jwt.ParseWithClaims(parts[1], &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, domain.ErrUnauthorized
+		}
+		return []byte(a.secret), nil
+	})
+	if err != nil {
+		return uuid.Nil, false
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return uuid.Nil, false
+	}
+
+	if strings.TrimSpace(claims.UserID) == "" || strings.TrimSpace(claims.Pseudonym) == "" {
+		return uuid.Nil, false
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return uuid.Nil, false
+	}
+
+	hash, err := a.redis.Get(c.Request.Context(), a.sessionKey(userID)).Result()
+	if err != nil {
+		return uuid.Nil, false
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(tokenDigest(parts[1]))); err != nil {
+		return uuid.Nil, false
+	}
+
+	return userID, true
+}
+
 func (a *Auth) Handler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")

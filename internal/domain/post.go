@@ -23,6 +23,7 @@ type Post struct {
 	IsHidden   bool            `json:"-" gorm:"not null;default:false"`
 	ReplyCount int             `json:"replyCount" gorm:"not null;default:0"`
 	Score      int             `json:"score" gorm:"not null;default:0"`
+	LikedByMe  bool            `json:"likedByMe,omitempty" gorm:"-"`
 	CreatedAt  time.Time       `json:"createdAt"`
 }
 
@@ -44,6 +45,7 @@ type Reply struct {
 	Pseudonym     string     `json:"pseudonym" gorm:"not null"`
 	Content       string     `json:"content" gorm:"type:text;not null"`
 	Score         int        `json:"score" gorm:"not null;default:0"`
+	LikedByMe     bool       `json:"likedByMe,omitempty" gorm:"-"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	Children      []Reply    `json:"children,omitempty" gorm:"-"`
 }
@@ -81,6 +83,8 @@ type PostRepository interface {
 	UpsertReaction(ctx context.Context, postID, userID uuid.UUID, kind ReactionKind) error
 	DeleteReaction(ctx context.Context, postID, userID uuid.UUID) error
 	DeleteReplyReaction(ctx context.Context, replyID, userID uuid.UUID) error
+	LikedPostIDsAmong(ctx context.Context, userID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error)
+	LikedReplyIDsAmong(ctx context.Context, userID uuid.UUID, replyIDs []uuid.UUID) (map[uuid.UUID]bool, error)
 }
 
 type PostService interface {
@@ -97,6 +101,8 @@ type PostService interface {
 	DeleteReply(ctx context.Context, replyID, authorID uuid.UUID) error
 	ReactReply(ctx context.Context, replyID, userID uuid.UUID, kind ReactionKind) error
 	UnreactReply(ctx context.Context, replyID, userID uuid.UUID) error
+	MarkViewerReactionsOnPosts(ctx context.Context, userID uuid.UUID, posts []Post)
+	MarkViewerReactionsOnReplies(ctx context.Context, userID uuid.UUID, replies []Reply)
 }
 
 type FeedRepository interface {

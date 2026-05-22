@@ -75,6 +75,12 @@ func (s *postSvcStub) DeleteReply(ctx context.Context, replyID, authorID uuid.UU
 	return nil
 }
 
+func (s *postSvcStub) MarkViewerReactionsOnPosts(ctx context.Context, userID uuid.UUID, posts []domain.Post) {
+}
+
+func (s *postSvcStub) MarkViewerReactionsOnReplies(ctx context.Context, userID uuid.UUID, replies []domain.Reply) {
+}
+
 func TestPostHandler_Create(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -95,7 +101,7 @@ func TestPostHandler_Create(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			r := gin.New()
-			p := NewPost(tc.service, "")
+			p := NewPost(tc.service, "", nil)
 			p.RegisterPrivate(r.Group("/posts"), func(c *gin.Context) {
 				if tc.userID != uuid.Nil {
 					c.Set("userID", tc.userID)
@@ -134,7 +140,7 @@ func TestPostHandler_GetByID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			r := gin.New()
-			p := NewPost(tc.service, "")
+			p := NewPost(tc.service, "", nil)
 			p.RegisterPublic(r.Group("/posts"))
 
 			body, _ := json.Marshal(map[string]string{"id": tc.id})
@@ -174,7 +180,7 @@ func TestPostHandler_Delete(t *testing.T) {
 				}
 				c.Next()
 			})
-			p := NewPost(tc.service, "")
+			p := NewPost(tc.service, "", nil)
 			p.RegisterPrivate(r.Group("/posts"))
 
 			body, _ := json.Marshal(map[string]string{"id": postID.String()})
