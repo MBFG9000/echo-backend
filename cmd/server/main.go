@@ -77,7 +77,16 @@ func run() error {
 	go feedHub.Run(hubCtx)
 	go worker.NewOutbox(outboxRepo, feedHub, slog.Default()).Run(hubCtx)
 
-	authService := service.NewAuth(userRepo, pseudonym.NewRandom(time.Now().UnixNano()), redisClient, cfg.JWT.Secret, cfg.JWT.TTL)
+	authService := service.NewAuth(
+		userRepo,
+		pseudonym.NewRandom(time.Now().UnixNano()),
+		redisClient,
+		cfg.JWT.Secret,
+		cfg.JWT.TTL,
+		cfg.Admin.Username,
+		cfg.Admin.Password,
+		cfg.Admin.UserID,
+	)
 	postService := service.NewPost(postRepo)
 	feedService := service.NewFeed(feedRepo, redisClient)
 	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
@@ -90,7 +99,7 @@ func run() error {
 	replyHandler := handler.NewReply(postService, authMiddleware)
 	reactionHandler := handler.NewReaction(postService)
 	reportHandler := handler.NewReport(reportService)
-	adminHandler := handler.NewAdmin(reportService)
+	adminHandler := handler.NewAdmin(reportService, postService)
 	wsHandler := handler.NewWS(feedHub, cfg.CORS.AllowedOrigins)
 	healthHandler := handler.NewHealth(db, redisClient)
 	adminMiddleware := middleware.NewAdmin()

@@ -64,7 +64,7 @@ func TestAuth_Register(t *testing.T) {
 		return nil
 	}
 
-	a := NewAuth(stubRepo, generatorStub{value: "greedy-owl-123"}, redisClient, "secret", time.Hour)
+	a := NewAuth(stubRepo, generatorStub{value: "greedy-owl-123"}, redisClient, "secret", time.Hour, "admin", "secret-pass", "00000000-0000-0000-0000-000000000001")
 
 	token, pseudo, err := a.Register(context.Background())
 	if err != nil {
@@ -100,7 +100,7 @@ func TestAuth_RegisterConflict(t *testing.T) {
 		return domain.ErrConflict
 	}
 
-	a := NewAuth(stubRepo, generatorStub{value: "dry-hill-123"}, redisClient, "secret", time.Hour)
+	a := NewAuth(stubRepo, generatorStub{value: "dry-hill-123"}, redisClient, "secret", time.Hour, "admin", "secret-pass", "00000000-0000-0000-0000-000000000001")
 
 	_, _, err = a.Register(context.Background())
 	if !errors.Is(err, domain.ErrConflict) {
@@ -122,7 +122,7 @@ func TestAuth_Refresh(t *testing.T) {
 	userID := uuid.New()
 	user := &domain.User{ID: userID, Pseudonym: "spark-owl", IsAdmin: false}
 
-	a := NewAuth(&userRepoStub{}, generatorStub{value: "spark-owl"}, redisClient, "secret", time.Hour)
+	a := NewAuth(&userRepoStub{}, generatorStub{value: "spark-owl"}, redisClient, "secret", time.Hour, "admin", "secret-pass", "00000000-0000-0000-0000-000000000001")
 
 	oldToken, err := a.sign(userID, user.Pseudonym, user.IsAdmin, time.Now().Add(time.Hour))
 	if err != nil {
@@ -175,9 +175,60 @@ func TestAuth_RefreshInvalidToken(t *testing.T) {
 	defer r.Close()
 
 	redisClient := redis.NewClient(&redis.Options{Addr: r.Addr()})
-	a := NewAuth(&userRepoStub{}, generatorStub{value: "x"}, redisClient, "secret", time.Hour)
+	a := NewAuth(&userRepoStub{}, generatorStub{value: "x"}, redisClient, "secret", time.Hour, "admin", "secret-pass", "00000000-0000-0000-0000-000000000001")
 
 	_, err = a.Refresh(context.Background(), "not-a-jwt")
+	if !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("expected unauthorized, got %v", err)
+	}
+}
+
+func TestAuth_AdminLogin(t *testing.T) {
+	r, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	redisClient := redis.NewClient(&redis.Options{Addr: r.Addr()})
+	adminID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
+	created := false
+	stubRepo := &userRepoStub{}
+	stubRepo.getByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		if id != adminID {
+			return nil, domain.ErrNotFound
+		}
+		if !created {
+			return nil, domain.ErrNotFound
+		}
+		return &domain.User{ID: adminID, Pseudonym: "echo-admin", IsAdmin: true}, nil
+	}
+	stubRepo.create = func(ctx context.Context, user *domain.User) error {
+		created = true
+		if !user.IsAdmin {
+			t.Fatal("expected admin user")
+		}
+		return nil
+	}
+	stubRepo.updateToken = func(ctx context.Context, id uuid.UUID, tokenHash string, expiresAt time.Time) error {
+		return nil
+	}
+
+	a := NewAuth(stubRepo, generatorStub{value: "x"}, redisClient, "secret", time.Hour, "admin", "secret-pass", adminID.String())
+
+	token, err := a.AdminLogin(context.Background(), "admin", "secret-pass")
+	if err != nil {
+		t.Fatalf("expected login success, got %v", err)
+	}
+	if token == "" {
+		t.Fatal("expected token")
+	}
+	if !created {
+		t.Fatal("expected admin user to be created")
+	}
+
+	_, err = a.AdminLogin(context.Background(), "admin", "wrong")
 	if !errors.Is(err, domain.ErrUnauthorized) {
 		t.Fatalf("expected unauthorized, got %v", err)
 	}

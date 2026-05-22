@@ -47,6 +47,12 @@ Do not run `go run` and `docker compose up app` at the same time — both use po
 
 Set `APP_PUBLIC_URL` in `.env` to your public frontend origin (no trailing slash). It is used for `GET /posts/:id/share` links and must match the URL users open in the browser (e.g. `http://your-host:8081` on VPS).
 
+Admin panel credentials (required for `/auth/admin/login` and the frontend `/admin` UI):
+
+- `ADMIN_USERNAME` — login name (default `admin`)
+- `ADMIN_PASSWORD` — set a strong value in production; login fails if empty
+- `ADMIN_USER_ID` — stable UUID for the admin user row (default `00000000-0000-0000-0000-000000000001`)
+
 ## Swagger docs
 
 ```bash
@@ -102,6 +108,7 @@ PostgreSQL
 | GET | /health | No | Service health with DB and Redis checks |
 | POST | /auth/register | No | Create anonymous session and return JWT + pseudonym |
 | POST | /auth/refresh | No | Rotate JWT (Bearer header or token in body) |
+| POST | /auth/admin/login | No | Admin login with username/password; returns admin JWT |
 | POST | /posts | Yes | Create post (JSON or multipart with optional file) |
 | GET | /posts/:id | No | Get post by ID |
 | POST | /posts/get | No | Get post by ID (legacy JSON body: `id`) |

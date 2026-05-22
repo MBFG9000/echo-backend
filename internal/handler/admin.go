@@ -10,6 +10,7 @@ import (
 
 type Admin struct {
 	reports domain.ReportService
+	posts   domain.PostService
 }
 
 type moderateRequest struct {
@@ -28,19 +29,22 @@ type listReportsResponse struct {
 }
 
 type reportView struct {
-	ID         uuid.UUID               `json:"id"`
-	PostID     uuid.UUID               `json:"postId"`
-	Reason     string                  `json:"reason"`
-	Status     domain.ReportStatus     `json:"status"`
-	Action     domain.ModerationAction `json:"action"`
-	ActionNote string                  `json:"actionNote"`
-	ReviewedBy *uuid.UUID              `json:"reviewedBy"`
-	ReviewedAt *string                 `json:"reviewedAt"`
-	CreatedAt  string                  `json:"createdAt"`
+	ID            uuid.UUID               `json:"id"`
+	PostID        uuid.UUID               `json:"postId"`
+	Reason        string                  `json:"reason"`
+	Status        domain.ReportStatus     `json:"status"`
+	Action        domain.ModerationAction `json:"action"`
+	ActionNote    string                  `json:"actionNote"`
+	ReviewedBy    *uuid.UUID              `json:"reviewedBy"`
+	ReviewedAt    *string                 `json:"reviewedAt"`
+	CreatedAt     string                  `json:"createdAt"`
+	PostContent   string                  `json:"postContent"`
+	PostPseudonym string                  `json:"postPseudonym"`
+	PostHidden    bool                    `json:"postHidden"`
 }
 
-func NewAdmin(reports domain.ReportService) *Admin {
-	return &Admin{reports: reports}
+func NewAdmin(reports domain.ReportService, posts domain.PostService) *Admin {
+	return &Admin{reports: reports, posts: posts}
 }
 
 func (a *Admin) Register(rg *gin.RouterGroup) {
@@ -85,7 +89,13 @@ func (a *Admin) listReports(c *gin.Context) {
 
 	items := make([]reportView, 0, len(reports))
 	for _, report := range reports {
-		items = append(items, toReportView(report))
+		item := toReportView(report)
+		if post, err := a.posts.GetByID(c.Request.Context(), report.PostID); err == nil {
+			item.PostContent = post.Content
+			item.PostPseudonym = post.Pseudonym
+			item.PostHidden = post.IsHidden
+		}
+		items = append(items, item)
 	}
 
 	c.JSON(http.StatusOK, listReportsResponse{Reports: items})

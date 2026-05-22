@@ -35,7 +35,16 @@ func main() {
 		return
 	}
 
-	auth := service.NewAuth(repository.NewUser(db), pseudonym.NewRandom(time.Now().UnixNano()), rdb, cfg.JWT.Secret, cfg.JWT.TTL)
+	auth := service.NewAuth(
+		repository.NewUser(db),
+		pseudonym.NewRandom(time.Now().UnixNano()),
+		rdb,
+		cfg.JWT.Secret,
+		cfg.JWT.TTL,
+		cfg.Admin.Username,
+		cfg.Admin.Password,
+		cfg.Admin.UserID,
+	)
 	token, pseudonymValue, err := auth.Register(context.Background())
 	if err != nil {
 		fmt.Printf("register error: %T %v\n", err, err)

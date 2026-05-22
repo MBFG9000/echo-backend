@@ -25,4 +25,5 @@ type UserRepository interface {
 type AuthService interface {
 	Register(ctx context.Context) (string, string, error)
 	Refresh(ctx context.Context, token string) (string, error)
+	AdminLogin(ctx context.Context, username, password string) (string, error)
 }

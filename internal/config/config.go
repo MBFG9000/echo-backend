@@ -21,6 +21,7 @@ type Config struct {
 	JWT          JWT
 	CORS         CORS
 	Moderation   Moderation
+	Admin        Admin
 }
 
 type Server struct {
@@ -59,6 +60,12 @@ type CORS struct {
 
 type Moderation struct {
 	AutoHideThreshold int
+}
+
+type Admin struct {
+	Username string
+	Password string
+	UserID   string
 }
 
 func Load() (Config, error) {
@@ -115,6 +122,10 @@ func Load() (Config, error) {
 	} else {
 		cfg.Moderation.AutoHideThreshold = moderationThreshold
 	}
+
+	cfg.Admin.Username = strings.TrimSpace(EnvOrDefault("ADMIN_USERNAME", "admin"))
+	cfg.Admin.Password = os.Getenv("ADMIN_PASSWORD")
+	cfg.Admin.UserID = strings.TrimSpace(EnvOrDefault("ADMIN_USER_ID", "00000000-0000-0000-0000-000000000001"))
 
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)

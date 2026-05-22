@@ -25,6 +25,10 @@ func (s *authSvcStub) Refresh(ctx context.Context, token string) (string, error)
 	return s.refresh(ctx, token)
 }
 
+func (s *authSvcStub) AdminLogin(ctx context.Context, username, password string) (string, error) {
+	return "", domain.ErrUnauthorized
+}
+
 func TestAuthHandler_Register(t *testing.T) {
 	cases := []struct {
 		name           string

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -25,20 +26,38 @@ type Claims struct {
 }
 
 type Auth struct {
-	users     domain.UserRepository
-	generator pseudonym.Generator
-	redis     *redis.Client
-	secret    string
-	ttl       time.Duration
+	users          domain.UserRepository
+	generator      pseudonym.Generator
+	redis          *redis.Client
+	secret         string
+	ttl            time.Duration
+	adminUsername  string
+	adminPassword  string
+	adminUserID    uuid.UUID
 }
 
-func NewAuth(users domain.UserRepository, generator pseudonym.Generator, redisClient *redis.Client, secret string, ttl time.Duration) *Auth {
+func NewAuth(
+	users domain.UserRepository,
+	generator pseudonym.Generator,
+	redisClient *redis.Client,
+	secret string,
+	ttl time.Duration,
+	adminUsername, adminPassword, adminUserIDRaw string,
+) *Auth {
+	adminUserID, err := uuid.Parse(strings.TrimSpace(adminUserIDRaw))
+	if err != nil {
+		adminUserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	}
+
 	return &Auth{
-		users:     users,
-		generator: generator,
-		redis:     redisClient,
-		secret:    secret,
-		ttl:       ttl,
+		users:         users,
+		generator:     generator,
+		redis:         redisClient,
+		secret:        secret,
+		ttl:           ttl,
+		adminUsername: strings.TrimSpace(adminUsername),
+		adminPassword: adminPassword,
+		adminUserID:   adminUserID,
 	}
 }
 
@@ -149,6 +168,61 @@ func (a *Auth) Refresh(ctx context.Context, oldToken string) (string, error) {
 	}
 
 	return newToken, nil
+}
+
+func (a *Auth) AdminLogin(ctx context.Context, username, password string) (string, error) {
+	if a.adminPassword == "" {
+		return "", domain.ErrUnauthorized
+	}
+
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(username)), []byte(a.adminUsername)) != 1 {
+		return "", domain.ErrUnauthorized
+	}
+	if subtle.ConstantTimeCompare([]byte(password), []byte(a.adminPassword)) != 1 {
+		return "", domain.ErrUnauthorized
+	}
+
+	now := time.Now()
+	expiresAt := now.Add(a.ttl)
+	pseudonymValue := "echo-admin"
+
+	token, err := a.sign(a.adminUserID, pseudonymValue, true, expiresAt)
+	if err != nil {
+		return "", fmt.Errorf("sign token: %w", err)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(tokenDigest(token)), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hash token: %w", err)
+	}
+
+	_, err = a.users.GetByID(ctx, a.adminUserID)
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		user := &domain.User{
+			ID:        a.adminUserID,
+			Pseudonym: pseudonymValue,
+			TokenHash: string(hash),
+			CreatedAt: now,
+			ExpiresAt: expiresAt,
+			IsAdmin:   true,
+		}
+		if err := a.users.Create(ctx, user); err != nil {
+			return "", fmt.Errorf("create admin user: %w", err)
+		}
+	case err != nil:
+		return "", fmt.Errorf("get admin user: %w", err)
+	default:
+		if err := a.users.UpdateToken(ctx, a.adminUserID, string(hash), expiresAt); err != nil {
+			return "", fmt.Errorf("update admin token: %w", err)
+		}
+	}
+
+	if err := a.storeSession(ctx, a.adminUserID, string(hash), expiresAt); err != nil {
+		return "", fmt.Errorf("store session: %w", err)
+	}
+
+	return token, nil
 }
 
 func (a *Auth) sign(userID uuid.UUID, pseudonym string, isAdmin bool, expiresAt time.Time) (string, error) {

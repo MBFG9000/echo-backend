@@ -25,6 +25,15 @@ type refreshRequest struct {
 	Token string `json:"token"`
 }
 
+type adminLoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type adminLoginResponse struct {
+	Token string `json:"token"`
+}
+
 func NewAuth(auth domain.AuthService) *Auth {
 	return &Auth{auth: auth}
 }
@@ -32,6 +41,7 @@ func NewAuth(auth domain.AuthService) *Auth {
 func (a *Auth) Register(rg *gin.RouterGroup) {
 	rg.POST("/register", a.register)
 	rg.POST("/refresh", a.refresh)
+	rg.POST("/admin/login", a.adminLogin)
 }
 
 // @Summary Register anonymous session
@@ -74,6 +84,32 @@ func (a *Auth) refresh(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, refreshResponse{Token: newToken})
+}
+
+// @Summary Admin login
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body adminLoginRequest true "Admin credentials"
+// @Success 200 {object} adminLoginResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /auth/admin/login [post]
+func (a *Auth) adminLogin(c *gin.Context) {
+	var req adminLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeValidationError(c, err)
+		return
+	}
+
+	token, err := a.auth.AdminLogin(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		writeDomainError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, adminLoginResponse{Token: token})
 }
 
 func refreshTokenFromRequest(c *gin.Context) string {
