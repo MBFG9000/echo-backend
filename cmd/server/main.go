@@ -14,7 +14,6 @@ import (
 
 	"github.com/echo-app/echo/docs"
 	"github.com/echo-app/echo/internal/config"
-	"github.com/echo-app/echo/internal/realtime"
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/handler"
 	"github.com/echo-app/echo/internal/hub"
@@ -88,10 +87,9 @@ func run() error {
 		cfg.Admin.Password,
 		cfg.Admin.UserID,
 	)
-	feedPublisher := realtime.NewPublisher(outboxRepo)
-	postService := service.NewPost(postRepo, feedPublisher)
+	postService := service.NewPost(postRepo)
 	feedService := service.NewFeed(feedRepo, redisClient)
-	reportService := service.NewReport(reportRepo, postRepo, feedPublisher, redisClient, cfg.Moderation.AutoHideThreshold)
+	reportService := service.NewReport(reportRepo, postRepo, redisClient, cfg.Moderation.AutoHideThreshold)
 
 	authMiddleware := middleware.NewAuth(cfg.JWT.Secret, redisClient)
 

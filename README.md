@@ -135,7 +135,7 @@ PostgreSQL
 | POST | /feed/latest | No | Latest feed (legacy JSON body) |
 | GET | /feed/trending | No | Trending feed |
 | POST | /feed/trending | No | Trending feed (legacy JSON body) |
-| GET | /ws/feed | No | Realtime feed websocket (broadcasts `post.created`, `post.updated`, `post.deleted`, `post.hidden`, `reply.created`, `reply.updated`, `reply.deleted`) |
+| GET | /ws/feed | No | Realtime feed websocket |
 | POST | /admin/reports/list | Admin | List open moderation reports |
 | POST | /admin/reports/action | Admin | Resolve report with dismiss/hide/ban |
 

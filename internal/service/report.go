@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/echo-app/echo/internal/domain"
-	"github.com/echo-app/echo/internal/realtime"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -15,25 +14,12 @@ import (
 type Report struct {
 	reports           domain.ReportRepository
 	posts             domain.PostRepository
-	publisher         *realtime.Publisher
 	redis             *redis.Client
 	autoHideThreshold int
 }
 
-func NewReport(
-	reports domain.ReportRepository,
-	posts domain.PostRepository,
-	publisher *realtime.Publisher,
-	redisClient *redis.Client,
-	autoHideThreshold int,
-) *Report {
-	return &Report{
-		reports:           reports,
-		posts:             posts,
-		publisher:         publisher,
-		redis:             redisClient,
-		autoHideThreshold: autoHideThreshold,
-	}
+func NewReport(reports domain.ReportRepository, posts domain.PostRepository, redisClient *redis.Client, autoHideThreshold int) *Report {
+	return &Report{reports: reports, posts: posts, redis: redisClient, autoHideThreshold: autoHideThreshold}
 }
 
 func (r *Report) Create(ctx context.Context, postID, reporterID uuid.UUID, reason string) (bool, error) {
@@ -56,10 +42,6 @@ func (r *Report) Create(ctx context.Context, postID, reporterID uuid.UUID, reaso
 	autoHidden, err := r.reports.Create(ctx, report, r.autoHideThreshold)
 	if err != nil {
 		return false, err
-	}
-
-	if autoHidden {
-		_ = r.publisher.Publish(ctx, realtime.EventPostHidden, realtime.PostIDPayload{PostID: postID.String()})
 	}
 
 	return autoHidden, nil
@@ -107,8 +89,6 @@ func (r *Report) Act(ctx context.Context, adminID, reportID uuid.UUID, action do
 			}
 			return fmt.Errorf("hide post: %w", err)
 		}
-
-		_ = r.publisher.Publish(ctx, realtime.EventPostHidden, realtime.PostIDPayload{PostID: report.PostID.String()})
 	}
 
 	if err := r.reports.Resolve(ctx, reportID, adminID, action, strings.TrimSpace(note)); err != nil {

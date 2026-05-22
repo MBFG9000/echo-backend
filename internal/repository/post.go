@@ -2,11 +2,11 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/echo-app/echo/internal/domain"
-	"github.com/echo-app/echo/internal/realtime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -52,7 +52,7 @@ func (p *Post) Create(ctx context.Context, post *domain.Post) error {
 			return nil
 		}
 
-		payload, err := realtime.MarshalEnvelope(realtime.EventPostCreated, postBroadcastPayload(post))
+		payload, err := json.Marshal(postBroadcastPayload(post))
 		if err != nil {
 			return err
 		}
@@ -442,10 +442,6 @@ func (p *Post) LikedReplyIDsAmong(ctx context.Context, userID uuid.UUID, replyID
 
 func attachmentMetadataScope(db *gorm.DB) *gorm.DB {
 	return db.Select("id", "post_id", "file_name", "content_type", "size", "created_at")
-}
-
-func (p *Post) GetReplyByID(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error) {
-	return p.getReplyByID(ctx, replyID)
 }
 
 func (p *Post) getReplyByID(ctx context.Context, replyID uuid.UUID) (*domain.Reply, error) {

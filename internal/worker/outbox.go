@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/echo-app/echo/internal/domain"
-	"github.com/echo-app/echo/internal/realtime"
 )
 
 type Broadcaster interface {
@@ -53,13 +52,13 @@ func (w *Outbox) flush(ctx context.Context) {
 	}
 
 	for _, event := range events {
-		if w.broadcaster != nil {
-			body, err := realtime.BroadcastBytes(event.EventType, event.Payload)
-			if err != nil {
-				w.logger.Error("outbox_broadcast_marshal_failed", slog.String("type", event.EventType), slog.String("error", err.Error()))
-			} else {
-				w.broadcaster.Broadcast(body)
+		switch event.EventType {
+		case domain.OutboxEventPostCreated:
+			if w.broadcaster != nil {
+				w.broadcaster.Broadcast(event.Payload)
 			}
+		default:
+			w.logger.Warn("outbox_unknown_event", slog.String("type", event.EventType))
 		}
 
 		if err := w.outbox.MarkProcessed(ctx, event.ID); err != nil {
