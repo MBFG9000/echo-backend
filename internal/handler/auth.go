@@ -33,6 +33,12 @@ func (a *Auth) Register(rg *gin.RouterGroup) {
 	rg.POST("/refresh", a.refresh)
 }
 
+// @Summary Register anonymous session
+// @Tags auth
+// @Produce json
+// @Success 201 {object} registerResponse
+// @Failure 500 {object} errorResponse
+// @Router /auth/register [post]
 func (a *Auth) register(c *gin.Context) {
 	token, pseudonym, err := a.auth.Register(c.Request.Context())
 	if err != nil {
@@ -43,6 +49,16 @@ func (a *Auth) register(c *gin.Context) {
 	c.JSON(http.StatusCreated, registerResponse{Token: token, Pseudonym: pseudonym})
 }
 
+// @Summary Refresh session token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body refreshRequest true "Refresh token"
+// @Success 200 {object} refreshResponse
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /auth/refresh [post]
 func (a *Auth) refresh(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

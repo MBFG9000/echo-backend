@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/echo-app/echo/docs"
 	"github.com/echo-app/echo/internal/config"
 	"github.com/echo-app/echo/internal/domain"
 	"github.com/echo-app/echo/internal/handler"
@@ -26,6 +27,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// @title Echo API
+// @version 1.0
+// @description Anonymous microblogging API for posts, replies, reactions, feeds, and moderation.
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer <token>
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -105,6 +114,9 @@ func run() error {
 		loggerMiddleware.Handler(),
 		corsMiddleware.Handler(),
 	)
+	router.GET("/swagger/doc.json", func(c *gin.Context) {
+		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(docs.SwaggerInfo.ReadDoc()))
+	})
 	healthHandler.Register(router)
 
 	authRoutes := router.Group("/auth")
