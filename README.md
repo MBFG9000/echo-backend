@@ -10,7 +10,7 @@ Echo backend is an anonymous microblogging API for posts, replies, reactions, re
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/echo-backend
+git clone https://github.com/MBFG9000/echo-backend
 cd echo-backend
 cp .env.example .env
 docker compose up -d
@@ -69,3 +69,15 @@ PostgreSQL
 ```bash
 docker compose run --rm migrate
 ```
+
+## Documentation
+
+- [User guide](docs/USER_GUIDE.md) — sessions, feeds, posts, reports, and moderation
+- [Privacy and data security](docs/PRIVACY.md) — stored data, IP handling, and operator duties
+- [Contributing](CONTRIBUTING.md) — setup, checks, and review rules
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Ownership](OWNERS.md)
+
+## License
+
+Echo is released under the [MIT License](LICENSE). Copyright is held by the Echo student team. See [OWNERS.md](OWNERS.md).
