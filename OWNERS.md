@@ -6,11 +6,10 @@ The canonical repository is [github.com/MBFG9000/echo-backend](https://github.co
 
 ## Maintainers
 
-These maintainers are named in the Git history of this repository:
-
 - Mirkhat Kuljatayev — [MBFG9000](https://github.com/MBFG9000)
 - Alikhan Makymov — [ranzai32](https://github.com/ranzai32)
+- [aldiyarbakhtiyaruly](https://github.com/aldiyarbakhtiyaruly)
 
-Other contributor identities recorded in Git history include `t0len` and `Estiyar`.
+Mirkhat Kuljatayev and Alikhan Makymov are named in the Git history of this repository. Other contributor identities recorded there include `t0len` and `Estiyar`.
 
 Questions about ownership, moderation policy, or a proposed transfer of stewardship go to the maintainers through a GitHub issue on this repository.
